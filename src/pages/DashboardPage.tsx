@@ -1,12 +1,13 @@
 import { leads, salesReps, statusConfig, type LeadStatus } from "@/data/mockData";
 import { StatusBadge } from "@/components/crm/StatusBadge";
 import { LeadScoreBadge } from "@/components/crm/LeadScoreBadge";
-import { 
+import {
   Users, Euro, TrendingUp, Home, ArrowUpRight, ArrowDownRight,
-  Plus, Clock
+  Plus, Target, Zap
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
+import { relativeDate } from "@/lib/dates";
 
 export default function DashboardPage() {
   const navigate = useNavigate();
@@ -15,6 +16,7 @@ export default function DashboardPage() {
   const wonLeads = leads.filter(l => l.status === 'gagné');
   const newLeads = leads.filter(l => l.status === 'nouveau');
   const avgScore = Math.round(leads.reduce((s, l) => s + l.score, 0) / totalLeads);
+  const conversionRate = Math.round((wonLeads.length / totalLeads) * 100);
 
   const pipelineCounts = Object.entries(statusConfig).map(([key, config]) => ({
     status: key as LeadStatus,
@@ -24,6 +26,15 @@ export default function DashboardPage() {
   }));
 
   const recentLeads = [...leads].sort((a, b) => new Date(b.lastContact).getTime() - new Date(a.lastContact).getTime()).slice(0, 5);
+
+  // Source breakdown
+  const sourceMap = new Map<string, number>();
+  leads.forEach(l => sourceMap.set(l.source, (sourceMap.get(l.source) || 0) + 1));
+  const sources = Array.from(sourceMap.entries()).sort((a, b) => b[1] - a[1]);
+  const maxSource = Math.max(...sources.map(s => s[1]));
+
+  // Hot leads (score > 70, not won/lost)
+  const hotLeads = leads.filter(l => l.score >= 70 && !['gagné', 'perdu'].includes(l.status)).sort((a, b) => b.score - a.score).slice(0, 4);
 
   return (
     <div className="space-y-6">
@@ -38,10 +49,11 @@ export default function DashboardPage() {
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <KPICard icon={Users} label="Total leads" value={totalLeads.toString()} change="+12%" positive />
         <KPICard icon={Euro} label="Pipeline total" value={`${(totalBudget / 1000).toFixed(0)}k €`} change="+8%" positive />
         <KPICard icon={Home} label="Projets gagnés" value={wonLeads.length.toString()} change="+2" positive />
+        <KPICard icon={Target} label="Conversion" value={`${conversionRate}%`} change="+5%" positive />
         <KPICard icon={TrendingUp} label="Score moyen" value={avgScore.toString()} change="-3" positive={false} />
       </div>
 
@@ -63,7 +75,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-4">
+      <div className="grid lg:grid-cols-3 gap-4">
         {/* Recent leads */}
         <div className="bg-card rounded-xl border p-5">
           <div className="flex items-center justify-between mb-4">
@@ -72,13 +84,13 @@ export default function DashboardPage() {
           </div>
           <div className="space-y-3">
             {recentLeads.map(lead => (
-              <div key={lead.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
+              <div key={lead.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => navigate('/leads')}>
                 <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center text-xs font-bold text-primary flex-shrink-0">
                   {lead.firstName[0]}{lead.lastName[0]}
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium truncate">{lead.firstName} {lead.lastName}</p>
-                  <p className="text-xs text-muted-foreground">{lead.houseModel} • {lead.city}</p>
+                  <p className="text-xs text-muted-foreground">{relativeDate(lead.lastContact)}</p>
                 </div>
                 <StatusBadge status={lead.status} />
               </div>
@@ -86,29 +98,66 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Top sales reps */}
+        {/* Hot leads */}
         <div className="bg-card rounded-xl border p-5">
-          <h2 className="font-display font-semibold text-sm mb-4">Équipe commerciale</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-display font-semibold text-sm flex items-center gap-1.5">
+              <Zap className="w-4 h-4 text-accent" /> Leads chauds
+            </h2>
+          </div>
           <div className="space-y-3">
-            {salesReps.map(rep => {
-              const repLeads = leads.filter(l => l.assignedTo === rep.id);
-              const repWon = repLeads.filter(l => l.status === 'gagné').length;
-              return (
-                <div key={rep.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors">
-                  <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-bold flex-shrink-0">
-                    {rep.avatar}
+            {hotLeads.map(lead => (
+              <div key={lead.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => navigate('/leads')}>
+                <LeadScoreBadge score={lead.score} />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium truncate">{lead.firstName} {lead.lastName}</p>
+                  <p className="text-xs text-muted-foreground">{lead.houseModel} • {lead.budget.toLocaleString('fr-FR')} €</p>
+                </div>
+                <StatusBadge status={lead.status} />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Sources + Team */}
+        <div className="space-y-4">
+          <div className="bg-card rounded-xl border p-5">
+            <h2 className="font-display font-semibold text-sm mb-3">Sources</h2>
+            <div className="space-y-2.5">
+              {sources.map(([source, count]) => (
+                <div key={source}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-medium">{source}</span>
+                    <span className="text-[10px] text-muted-foreground">{count}</span>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium">{rep.name}</p>
-                    <p className="text-xs text-muted-foreground">{rep.role}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-bold">{repLeads.length} leads</p>
-                    <p className="text-[10px] text-tag-won font-medium">{repWon} gagné{repWon > 1 ? 's' : ''}</p>
+                  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                    <div className="h-full bg-primary rounded-full" style={{ width: `${(count / maxSource) * 100}%` }} />
                   </div>
                 </div>
-              );
-            })}
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-card rounded-xl border p-5">
+            <h2 className="font-display font-semibold text-sm mb-3">Équipe</h2>
+            <div className="space-y-2">
+              {salesReps.map(rep => {
+                const repLeads = leads.filter(l => l.assignedTo === rep.id);
+                const repWon = repLeads.filter(l => l.status === 'gagné').length;
+                return (
+                  <div key={rep.id} className="flex items-center gap-2 p-1.5">
+                    <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-[10px] font-bold flex-shrink-0">
+                      {rep.avatar}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium truncate">{rep.name}</p>
+                    </div>
+                    <span className="text-xs font-bold">{repLeads.length}</span>
+                    <span className="text-[10px] text-tag-won font-medium">{repWon}✓</span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>

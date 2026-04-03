@@ -6,13 +6,15 @@ import { LeadDetailPanel } from "@/components/crm/LeadDetailPanel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
   Search, Plus, Download, Filter, ArrowUpDown, Users, UserPlus,
-  Mail, MoreHorizontal
+  Mail, MoreHorizontal, Clock
 } from "lucide-react";
+import { relativeDate } from "@/lib/dates";
 
 export default function LeadsPage() {
   const [search, setSearch] = useState("");
@@ -73,13 +75,20 @@ export default function LeadsPage() {
     a.href = url; a.download = 'leads_export.csv'; a.click();
   };
 
+  // Status counts for quick filters
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: allLeads.length };
+    allLeads.forEach(l => { counts[l.status] = (counts[l.status] || 0) + 1; });
+    return counts;
+  }, []);
+
   return (
     <div className="space-y-4">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="font-display text-2xl font-bold">Leads</h1>
-          <p className="text-sm text-muted-foreground">{filteredLeads.length} leads • {allLeads.filter(l => l.status === 'nouveau').length} nouveaux</p>
+          <p className="text-sm text-muted-foreground">{filteredLeads.length} leads • {statusCounts['nouveau'] || 0} nouveaux</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={exportCSV}>
@@ -91,24 +100,31 @@ export default function LeadsPage() {
         </div>
       </div>
 
+      {/* Quick status filters */}
+      <div className="flex gap-1.5 overflow-x-auto pb-1">
+        <button
+          onClick={() => setStatusFilter("all")}
+          className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${statusFilter === "all" ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
+        >
+          Tous ({statusCounts.all})
+        </button>
+        {Object.entries(statusConfig).map(([key, config]) => (
+          <button
+            key={key}
+            onClick={() => setStatusFilter(statusFilter === key ? "all" : key)}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${statusFilter === key ? config.bgClass + ' ring-1 ring-current' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
+          >
+            {config.label} ({statusCounts[key] || 0})
+          </button>
+        ))}
+      </div>
+
       {/* Filters */}
       <div className="flex flex-wrap gap-2 items-center">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input placeholder="Rechercher..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-9 text-sm bg-card" />
         </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[150px] h-9 text-xs bg-card">
-            <Filter className="w-3.5 h-3.5 mr-1.5" />
-            <SelectValue placeholder="Statut" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Tous les statuts</SelectItem>
-            {Object.entries(statusConfig).map(([key, { label }]) => (
-              <SelectItem key={key} value={key}>{label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
         <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
           <SelectTrigger className="w-[160px] h-9 text-xs bg-card">
             <Users className="w-3.5 h-3.5 mr-1.5" />
@@ -164,7 +180,7 @@ export default function LeadsPage() {
                 </th>
                 <th className="p-3 text-left font-medium text-xs text-muted-foreground hidden lg:table-cell">Ville</th>
                 <th className="p-3 text-left font-medium text-xs text-muted-foreground hidden xl:table-cell">Commercial</th>
-                <th className="p-3 text-left font-medium text-xs text-muted-foreground hidden xl:table-cell">Tags</th>
+                <th className="p-3 text-left font-medium text-xs text-muted-foreground hidden xl:table-cell">Dernier contact</th>
                 <th className="p-3 w-10"></th>
               </tr>
             </thead>
@@ -174,7 +190,7 @@ export default function LeadsPage() {
                 return (
                   <tr
                     key={lead.id}
-                    className="border-b last:border-0 hover:bg-muted/30 transition-colors cursor-pointer"
+                    className="border-b last:border-0 hover:bg-muted/30 transition-colors cursor-pointer group"
                     onClick={() => setSelectedLead(lead)}
                   >
                     <td className="p-3" onClick={e => e.stopPropagation()}>
@@ -205,12 +221,17 @@ export default function LeadsPage() {
                       )}
                     </td>
                     <td className="p-3 hidden xl:table-cell">
-                      <div className="flex gap-1">
-                        {lead.tags.slice(0, 2).map(tag => (
-                          <span key={tag} className="px-2 py-0.5 rounded bg-muted text-[10px] font-medium truncate max-w-[80px]">{tag}</span>
-                        ))}
-                        {lead.tags.length > 2 && <span className="text-[10px] text-muted-foreground">+{lead.tags.length - 2}</span>}
-                      </div>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="text-xs text-muted-foreground flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {relativeDate(lead.lastContact)}
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {new Date(lead.lastContact).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+                        </TooltipContent>
+                      </Tooltip>
                     </td>
                     <td className="p-3" onClick={e => e.stopPropagation()}>
                       <button className="w-7 h-7 rounded hover:bg-muted flex items-center justify-center">

@@ -1,21 +1,25 @@
 import { Lead, salesReps, statusConfig, type LeadStatus } from "@/data/mockData";
 import { StatusBadge } from "./StatusBadge";
 import { LeadScoreBadge } from "./LeadScoreBadge";
-import { 
-  X, Mail, Phone, MapPin, MessageSquare, StickyNote, Paperclip, 
-  Send, User, Calendar, Home, Euro, ChevronDown
+import {
+  X, Mail, Phone, MapPin, MessageSquare, StickyNote, Paperclip,
+  Send, User, Calendar, Home, Euro, ChevronRight, History
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { relativeDate } from "@/lib/dates";
 
 interface LeadDetailPanelProps {
   lead: Lead | null;
   onClose: () => void;
 }
+
+const pipelineOrder: LeadStatus[] = ['nouveau', 'contacté', 'qualifié', 'proposition', 'négociation', 'gagné', 'perdu'];
 
 export function LeadDetailPanel({ lead, onClose }: LeadDetailPanelProps) {
   const [newNote, setNewNote] = useState("");
@@ -23,10 +27,22 @@ export function LeadDetailPanel({ lead, onClose }: LeadDetailPanelProps) {
   const [emailMode, setEmailMode] = useState(false);
   const [emailSubject, setEmailSubject] = useState("");
   const [emailBody, setEmailBody] = useState("");
+  const [currentStatus, setCurrentStatus] = useState<LeadStatus | null>(null);
 
   if (!lead) return null;
 
   const rep = salesReps.find(r => r.id === lead.assignedTo);
+  const displayStatus = currentStatus || lead.status;
+  const currentIndex = pipelineOrder.indexOf(displayStatus);
+
+  // Mock timeline
+  const timeline = [
+    { date: lead.createdAt, event: "Lead créé", detail: `Source : ${lead.source}` },
+    ...(lead.assignedTo ? [{ date: lead.createdAt, event: "Assigné", detail: `Commercial : ${rep?.name || '—'}` }] : []),
+    ...lead.notes.map(n => ({ date: n.createdAt, event: "Note ajoutée", detail: n.content.slice(0, 60) + (n.content.length > 60 ? '...' : '') })),
+    ...lead.messages.map(m => ({ date: m.createdAt, event: "Message interne", detail: m.content.slice(0, 60) + (m.content.length > 60 ? '...' : '') })),
+    { date: lead.lastContact, event: "Dernier contact", detail: `Statut : ${statusConfig[lead.status].label}` },
+  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   return (
     <AnimatePresence>
@@ -55,7 +71,6 @@ export function LeadDetailPanel({ lead, onClose }: LeadDetailPanelProps) {
                   <h2 className="font-display font-bold text-xl">{lead.firstName} {lead.lastName}</h2>
                   <p className="text-sm text-muted-foreground">{lead.city} • {lead.source}</p>
                   <div className="flex items-center gap-2 mt-1.5">
-                    <StatusBadge status={lead.status} />
                     <LeadScoreBadge score={lead.score} />
                   </div>
                 </div>
@@ -65,8 +80,52 @@ export function LeadDetailPanel({ lead, onClose }: LeadDetailPanelProps) {
               </button>
             </div>
 
+            {/* Status pipeline stepper */}
+            <div className="mt-4 flex items-center gap-1">
+              {pipelineOrder.filter(s => s !== 'perdu').map((status, i) => {
+                const isActive = i <= currentIndex && displayStatus !== 'perdu';
+                const isCurrent = status === displayStatus;
+                return (
+                  <button
+                    key={status}
+                    onClick={() => setCurrentStatus(status)}
+                    className={`flex-1 h-2 rounded-full transition-all ${isCurrent ? 'h-3' : ''} ${isActive ? '' : 'bg-muted'}`}
+                    style={isActive ? { backgroundColor: `hsl(var(--tag-${statusConfig[status].color.replace('tag-', '')}))` } : undefined}
+                    title={statusConfig[status].label}
+                  />
+                );
+              })}
+            </div>
+            <div className="flex items-center justify-between mt-2">
+              <Select value={displayStatus} onValueChange={(v) => setCurrentStatus(v as LeadStatus)}>
+                <SelectTrigger className="w-[180px] h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {pipelineOrder.map(s => (
+                    <SelectItem key={s} value={s}>
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: `hsl(var(--tag-${statusConfig[s].color.replace('tag-', '')}))` }} />
+                        {statusConfig[s].label}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {currentIndex < 5 && displayStatus !== 'perdu' && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-xs gap-1 h-8"
+                  onClick={() => setCurrentStatus(pipelineOrder[Math.min(currentIndex + 1, 5)])}
+                >
+                  Avancer <ChevronRight className="w-3 h-3" />
+                </Button>
+              )}
+            </div>
+
             {/* Quick actions */}
-            <div className="flex gap-2 mt-4">
+            <div className="flex gap-2 mt-3">
               <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={() => setEmailMode(!emailMode)}>
                 <Mail className="w-3.5 h-3.5" /> Email
               </Button>
@@ -111,7 +170,7 @@ export function LeadDetailPanel({ lead, onClose }: LeadDetailPanelProps) {
               <InfoCard icon={MapPin} label="Adresse" value={`${lead.address}, ${lead.postalCode} ${lead.city}`} />
               <InfoCard icon={User} label="Commercial" value={rep?.name || '—'} />
               <InfoCard icon={Calendar} label="Créé le" value={new Date(lead.createdAt).toLocaleDateString('fr-FR')} />
-              <InfoCard icon={Calendar} label="Dernier contact" value={new Date(lead.lastContact).toLocaleDateString('fr-FR')} />
+              <InfoCard icon={Calendar} label="Dernier contact" value={relativeDate(lead.lastContact)} />
             </div>
 
             {/* Tags */}
@@ -126,7 +185,7 @@ export function LeadDetailPanel({ lead, onClose }: LeadDetailPanelProps) {
             </div>
 
             {/* Map embed */}
-            <div className="rounded-xl overflow-hidden border h-40 bg-muted flex items-center justify-center">
+            <div className="rounded-xl overflow-hidden border h-40 bg-muted">
               <iframe
                 title="Localisation"
                 width="100%"
@@ -147,8 +206,11 @@ export function LeadDetailPanel({ lead, onClose }: LeadDetailPanelProps) {
                 <TabsTrigger value="chat" className="flex-1 gap-1.5 text-xs">
                   <MessageSquare className="w-3.5 h-3.5" /> Chat ({lead.messages.length})
                 </TabsTrigger>
+                <TabsTrigger value="timeline" className="flex-1 gap-1.5 text-xs">
+                  <History className="w-3.5 h-3.5" /> Historique
+                </TabsTrigger>
                 <TabsTrigger value="files" className="flex-1 gap-1.5 text-xs">
-                  <Paperclip className="w-3.5 h-3.5" /> Pièces jointes
+                  <Paperclip className="w-3.5 h-3.5" /> Fichiers
                 </TabsTrigger>
               </TabsList>
 
@@ -157,7 +219,7 @@ export function LeadDetailPanel({ lead, onClose }: LeadDetailPanelProps) {
                   <div key={note.id} className="p-3 rounded-lg bg-muted/50 border">
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-xs font-medium">{note.author}</span>
-                      <span className="text-xs text-muted-foreground">{new Date(note.createdAt).toLocaleDateString('fr-FR')}</span>
+                      <span className="text-xs text-muted-foreground">{relativeDate(note.createdAt)}</span>
                     </div>
                     <p className="text-sm">{note.content}</p>
                   </div>
@@ -178,7 +240,7 @@ export function LeadDetailPanel({ lead, onClose }: LeadDetailPanelProps) {
                   <div key={msg.id} className="p-3 rounded-lg bg-muted/50 border">
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-xs font-medium">{msg.author}</span>
-                      <span className="text-xs text-muted-foreground">{new Date(msg.createdAt).toLocaleDateString('fr-FR')}</span>
+                      <span className="text-xs text-muted-foreground">{relativeDate(msg.createdAt)}</span>
                     </div>
                     <p className="text-sm">{msg.content}</p>
                   </div>
@@ -188,6 +250,24 @@ export function LeadDetailPanel({ lead, onClose }: LeadDetailPanelProps) {
                   <Button size="icon" className="flex-shrink-0 bg-primary text-primary-foreground">
                     <Send className="w-4 h-4" />
                   </Button>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="timeline" className="mt-4">
+                <div className="relative pl-6 space-y-4">
+                  <div className="absolute left-2 top-2 bottom-2 w-px bg-border" />
+                  {timeline.map((evt, i) => (
+                    <div key={i} className="relative">
+                      <div className="absolute -left-6 top-1 w-4 h-4 rounded-full bg-card border-2 border-primary" />
+                      <div className="pb-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-medium">{evt.event}</span>
+                          <span className="text-[10px] text-muted-foreground">{relativeDate(evt.date)}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5">{evt.detail}</p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </TabsContent>
 
