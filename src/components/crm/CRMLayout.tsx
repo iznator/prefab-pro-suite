@@ -1,13 +1,17 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { CRMSidebar } from "./CRMSidebar";
-import { Bell, Search } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { CommandSearch } from "./CommandSearch";
+import { NotificationsPanel } from "./NotificationsPanel";
+import { Moon, Sun } from "lucide-react";
+import { useTheme } from "@/hooks/useTheme";
 
 interface CRMLayoutProps {
   children: React.ReactNode;
 }
 
 export function CRMLayout({ children }: CRMLayoutProps) {
+  const { theme, toggle } = useTheme();
+
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
@@ -16,19 +20,17 @@ export function CRMLayout({ children }: CRMLayoutProps) {
           <header className="h-14 flex items-center justify-between border-b bg-card px-4 flex-shrink-0">
             <div className="flex items-center gap-3">
               <SidebarTrigger />
-              <div className="relative hidden md:block">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Rechercher un lead, une adresse..."
-                  className="pl-9 w-72 h-9 bg-muted border-0 text-sm"
-                />
-              </div>
+              <CommandSearch />
             </div>
-            <div className="flex items-center gap-3">
-              <button className="relative w-9 h-9 rounded-lg flex items-center justify-center hover:bg-muted transition-colors">
-                <Bell className="w-4 h-4 text-muted-foreground" />
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-accent" />
+            <div className="flex items-center gap-2">
+              <button
+                onClick={toggle}
+                className="w-9 h-9 rounded-lg flex items-center justify-center hover:bg-muted transition-colors"
+                title={theme === "dark" ? "Mode clair" : "Mode sombre"}
+              >
+                {theme === "dark" ? <Sun className="w-4 h-4 text-muted-foreground" /> : <Moon className="w-4 h-4 text-muted-foreground" />}
               </button>
+              <NotificationsPanel />
               <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-semibold">
                 MD
               </div>
