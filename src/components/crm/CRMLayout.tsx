@@ -2,8 +2,11 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { CRMSidebar } from "./CRMSidebar";
 import { CommandSearch } from "./CommandSearch";
 import { NotificationsPanel } from "./NotificationsPanel";
-import { Moon, Sun } from "lucide-react";
+import { KeyboardShortcutsDialog } from "./KeyboardShortcutsDialog";
+import { NewLeadDialog } from "./NewLeadDialog";
+import { Moon, Sun, Plus } from "lucide-react";
 import { useTheme } from "@/hooks/useTheme";
+import { Button } from "@/components/ui/button";
 
 interface CRMLayoutProps {
   children: React.ReactNode;
@@ -23,6 +26,13 @@ export function CRMLayout({ children }: CRMLayoutProps) {
               <CommandSearch />
             </div>
             <div className="flex items-center gap-2">
+              <NewLeadDialog
+                trigger={
+                  <Button size="sm" className="gap-1.5 text-xs bg-primary text-primary-foreground hidden sm:flex">
+                    <Plus className="w-3.5 h-3.5" /> Nouveau lead
+                  </Button>
+                }
+              />
               <button
                 onClick={toggle}
                 className="w-9 h-9 rounded-lg flex items-center justify-center hover:bg-muted transition-colors"
@@ -31,7 +41,7 @@ export function CRMLayout({ children }: CRMLayoutProps) {
                 {theme === "dark" ? <Sun className="w-4 h-4 text-muted-foreground" /> : <Moon className="w-4 h-4 text-muted-foreground" />}
               </button>
               <NotificationsPanel />
-              <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-semibold">
+              <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-semibold cursor-pointer hover:opacity-90 transition-opacity">
                 MD
               </div>
             </div>
@@ -41,6 +51,7 @@ export function CRMLayout({ children }: CRMLayoutProps) {
           </main>
         </div>
       </div>
+      <KeyboardShortcutsDialog />
     </SidebarProvider>
   );
 }
