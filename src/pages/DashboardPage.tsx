@@ -3,11 +3,19 @@ import { StatusBadge } from "@/components/crm/StatusBadge";
 import { LeadScoreBadge } from "@/components/crm/LeadScoreBadge";
 import {
   Users, Euro, TrendingUp, Home, ArrowUpRight, ArrowDownRight,
-  Plus, Target, Zap
+  Target, Zap, AlertTriangle, Clock, CheckCircle2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { NewLeadDialog } from "@/components/crm/NewLeadDialog";
 import { useNavigate } from "react-router-dom";
-import { relativeDate } from "@/lib/dates";
+import { relativeDate, daysSince } from "@/lib/dates";
+
+function getGreeting(): string {
+  const h = new Date().getHours();
+  if (h < 12) return "Bonjour";
+  if (h < 18) return "Bon après-midi";
+  return "Bonsoir";
+}
 
 export default function DashboardPage() {
   const navigate = useNavigate();
@@ -36,17 +44,80 @@ export default function DashboardPage() {
   // Hot leads (score > 70, not won/lost)
   const hotLeads = leads.filter(l => l.score >= 70 && !['gagné', 'perdu'].includes(l.status)).sort((a, b) => b.score - a.score).slice(0, 4);
 
+  // Stale leads (no contact > 7 days, still active)
+  const staleLeads = leads.filter(l => !['gagné', 'perdu'].includes(l.status) && daysSince(l.lastContact) > 7).sort((a, b) => daysSince(b.lastContact) - daysSince(a.lastContact));
+
+  // Today's follow-ups (leads contacted 3+ days ago in early stages)
+  const followUps = leads.filter(l => ['contacté', 'qualifié'].includes(l.status) && daysSince(l.lastContact) >= 3).slice(0, 3);
+
   return (
     <div className="space-y-6">
+      {/* Greeting */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-display text-2xl font-bold">Tableau de bord</h1>
-          <p className="text-sm text-muted-foreground">Vue d'ensemble de votre activité commerciale</p>
+          <h1 className="font-display text-2xl font-bold">{getGreeting()}, Marie 👋</h1>
+          <p className="text-sm text-muted-foreground">
+            {newLeads.length > 0 && <span className="text-primary font-medium">{newLeads.length} nouveau{newLeads.length > 1 ? 'x' : ''} lead{newLeads.length > 1 ? 's' : ''}</span>}
+            {newLeads.length > 0 && staleLeads.length > 0 && ' • '}
+            {staleLeads.length > 0 && <span className="text-tag-lost">{staleLeads.length} lead{staleLeads.length > 1 ? 's' : ''} à relancer</span>}
+            {newLeads.length === 0 && staleLeads.length === 0 && 'Tout est à jour !'}
+          </p>
         </div>
-        <Button size="sm" className="gap-1.5 text-xs bg-primary text-primary-foreground" onClick={() => navigate('/leads')}>
-          <Plus className="w-3.5 h-3.5" /> Nouveau lead
-        </Button>
+        <NewLeadDialog />
       </div>
+
+      {/* Urgent alerts */}
+      {(staleLeads.length > 0 || followUps.length > 0) && (
+        <div className="grid sm:grid-cols-2 gap-3">
+          {staleLeads.length > 0 && (
+            <div className="bg-tag-lost/5 border border-tag-lost/20 rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <AlertTriangle className="w-4 h-4 text-tag-lost" />
+                <h3 className="text-sm font-semibold text-tag-lost">Leads à relancer</h3>
+              </div>
+              <div className="space-y-2">
+                {staleLeads.slice(0, 3).map(lead => (
+                  <div key={lead.id} className="flex items-center justify-between cursor-pointer hover:bg-tag-lost/5 rounded-lg p-1.5 -mx-1.5 transition-colors" onClick={() => navigate('/leads')}>
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg bg-tag-lost/10 flex items-center justify-center text-[10px] font-bold text-tag-lost">
+                        {lead.firstName[0]}{lead.lastName[0]}
+                      </div>
+                      <span className="text-sm font-medium">{lead.firstName} {lead.lastName}</span>
+                    </div>
+                    <span className="text-xs text-tag-lost font-medium flex items-center gap-1">
+                      <Clock className="w-3 h-3" /> {daysSince(lead.lastContact)}j
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {followUps.length > 0 && (
+            <div className="bg-tag-contacted/5 border border-tag-contacted/20 rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <CheckCircle2 className="w-4 h-4 text-tag-contacted" />
+                <h3 className="text-sm font-semibold text-tag-contacted">Relances du jour</h3>
+              </div>
+              <div className="space-y-2">
+                {followUps.map(lead => (
+                  <div key={lead.id} className="flex items-center justify-between cursor-pointer hover:bg-tag-contacted/5 rounded-lg p-1.5 -mx-1.5 transition-colors" onClick={() => navigate('/leads')}>
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg bg-tag-contacted/10 flex items-center justify-center text-[10px] font-bold text-tag-contacted">
+                        {lead.firstName[0]}{lead.lastName[0]}
+                      </div>
+                      <div>
+                        <span className="text-sm font-medium">{lead.firstName} {lead.lastName}</span>
+                        <p className="text-[10px] text-muted-foreground">{lead.houseModel}</p>
+                      </div>
+                    </div>
+                    <StatusBadge status={lead.status} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">

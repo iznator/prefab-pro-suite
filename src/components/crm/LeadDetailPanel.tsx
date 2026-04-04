@@ -3,16 +3,19 @@ import { StatusBadge } from "./StatusBadge";
 import { LeadScoreBadge } from "./LeadScoreBadge";
 import {
   X, Mail, Phone, MapPin, MessageSquare, StickyNote, Paperclip,
-  Send, User, Calendar, Home, Euro, ChevronRight, History
+  Send, User, Calendar, Home, Euro, ChevronRight, History,
+  Copy, ExternalLink, Check
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { relativeDate } from "@/lib/dates";
+import { toast } from "sonner";
 
 interface LeadDetailPanelProps {
   lead: Lead | null;
@@ -20,6 +23,27 @@ interface LeadDetailPanelProps {
 }
 
 const pipelineOrder: LeadStatus[] = ['nouveau', 'contacté', 'qualifié', 'proposition', 'négociation', 'gagné', 'perdu'];
+
+function CopyButton({ text, label }: { text: string; label: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    toast.success(`${label} copié !`);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button onClick={copy} className="w-6 h-6 rounded hover:bg-muted flex items-center justify-center transition-colors">
+          {copied ? <Check className="w-3 h-3 text-tag-won" /> : <Copy className="w-3 h-3 text-muted-foreground" />}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="text-xs">Copier</TooltipContent>
+    </Tooltip>
+  );
+}
 
 export function LeadDetailPanel({ lead, onClose }: LeadDetailPanelProps) {
   const [newNote, setNewNote] = useState("");
@@ -35,7 +59,6 @@ export function LeadDetailPanel({ lead, onClose }: LeadDetailPanelProps) {
   const displayStatus = currentStatus || lead.status;
   const currentIndex = pipelineOrder.indexOf(displayStatus);
 
-  // Mock timeline
   const timeline = [
     { date: lead.createdAt, event: "Lead créé", detail: `Source : ${lead.source}` },
     ...(lead.assignedTo ? [{ date: lead.createdAt, event: "Assigné", detail: `Commercial : ${rep?.name || '—'}` }] : []),
@@ -80,19 +103,34 @@ export function LeadDetailPanel({ lead, onClose }: LeadDetailPanelProps) {
               </button>
             </div>
 
+            {/* Clickable contact info */}
+            <div className="flex flex-wrap gap-2 mt-3">
+              <a href={`tel:${lead.phone.replace(/\s/g, '')}`} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-muted hover:bg-muted/80 transition-colors text-xs">
+                <Phone className="w-3 h-3 text-tag-won" /> {lead.phone}
+              </a>
+              <CopyButton text={lead.phone} label="Téléphone" />
+              <a href={`mailto:${lead.email}`} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-muted hover:bg-muted/80 transition-colors text-xs">
+                <Mail className="w-3 h-3 text-primary" /> {lead.email}
+              </a>
+              <CopyButton text={lead.email} label="Email" />
+            </div>
+
             {/* Status pipeline stepper */}
             <div className="mt-4 flex items-center gap-1">
               {pipelineOrder.filter(s => s !== 'perdu').map((status, i) => {
                 const isActive = i <= currentIndex && displayStatus !== 'perdu';
                 const isCurrent = status === displayStatus;
                 return (
-                  <button
-                    key={status}
-                    onClick={() => setCurrentStatus(status)}
-                    className={`flex-1 h-2 rounded-full transition-all ${isCurrent ? 'h-3' : ''} ${isActive ? '' : 'bg-muted'}`}
-                    style={isActive ? { backgroundColor: `hsl(var(--tag-${statusConfig[status].color.replace('tag-', '')}))` } : undefined}
-                    title={statusConfig[status].label}
-                  />
+                  <Tooltip key={status}>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => setCurrentStatus(status)}
+                        className={`flex-1 h-2 rounded-full transition-all ${isCurrent ? 'h-3' : ''} ${isActive ? '' : 'bg-muted'}`}
+                        style={isActive ? { backgroundColor: `hsl(var(--tag-${statusConfig[status].color.replace('tag-', '')}))` } : undefined}
+                      />
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="text-xs">{statusConfig[status].label}</TooltipContent>
+                  </Tooltip>
                 );
               })}
             </div>
@@ -117,7 +155,11 @@ export function LeadDetailPanel({ lead, onClose }: LeadDetailPanelProps) {
                   size="sm"
                   variant="outline"
                   className="text-xs gap-1 h-8"
-                  onClick={() => setCurrentStatus(pipelineOrder[Math.min(currentIndex + 1, 5)])}
+                  onClick={() => {
+                    const next = pipelineOrder[Math.min(currentIndex + 1, 5)];
+                    setCurrentStatus(next);
+                    toast.success(`Statut mis à jour : ${statusConfig[next].label}`);
+                  }}
                 >
                   Avancer <ChevronRight className="w-3 h-3" />
                 </Button>
@@ -129,11 +171,15 @@ export function LeadDetailPanel({ lead, onClose }: LeadDetailPanelProps) {
               <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={() => setEmailMode(!emailMode)}>
                 <Mail className="w-3.5 h-3.5" /> Email
               </Button>
-              <Button size="sm" variant="outline" className="gap-1.5 text-xs">
-                <Phone className="w-3.5 h-3.5" /> Appeler
+              <Button size="sm" variant="outline" className="gap-1.5 text-xs" asChild>
+                <a href={`tel:${lead.phone.replace(/\s/g, '')}`}>
+                  <Phone className="w-3.5 h-3.5" /> Appeler
+                </a>
               </Button>
-              <Button size="sm" variant="outline" className="gap-1.5 text-xs">
-                <MessageSquare className="w-3.5 h-3.5" /> SMS
+              <Button size="sm" variant="outline" className="gap-1.5 text-xs" asChild>
+                <a href={`sms:${lead.phone.replace(/\s/g, '')}`}>
+                  <MessageSquare className="w-3.5 h-3.5" /> SMS
+                </a>
               </Button>
             </div>
           </div>
@@ -153,7 +199,7 @@ export function LeadDetailPanel({ lead, onClose }: LeadDetailPanelProps) {
                   <Textarea placeholder="Votre message..." value={emailBody} onChange={e => setEmailBody(e.target.value)} rows={4} className="text-sm" />
                   <div className="flex justify-end gap-2">
                     <Button size="sm" variant="ghost" onClick={() => setEmailMode(false)}>Annuler</Button>
-                    <Button size="sm" className="gap-1.5 bg-primary text-primary-foreground">
+                    <Button size="sm" className="gap-1.5 bg-primary text-primary-foreground" onClick={() => { setEmailMode(false); toast.success("Email envoyé !"); }}>
                       <Send className="w-3.5 h-3.5" /> Envoyer
                     </Button>
                   </div>
@@ -167,7 +213,7 @@ export function LeadDetailPanel({ lead, onClose }: LeadDetailPanelProps) {
             <div className="grid grid-cols-2 gap-3">
               <InfoCard icon={Home} label="Modèle" value={lead.houseModel} />
               <InfoCard icon={Euro} label="Budget" value={`${lead.budget.toLocaleString('fr-FR')} €`} />
-              <InfoCard icon={MapPin} label="Adresse" value={`${lead.address}, ${lead.postalCode} ${lead.city}`} />
+              <InfoCard icon={MapPin} label="Adresse" value={`${lead.address}, ${lead.postalCode} ${lead.city}`} link={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${lead.address}, ${lead.postalCode} ${lead.city}`)}`} />
               <InfoCard icon={User} label="Commercial" value={rep?.name || '—'} />
               <InfoCard icon={Calendar} label="Créé le" value={new Date(lead.createdAt).toLocaleDateString('fr-FR')} />
               <InfoCard icon={Calendar} label="Dernier contact" value={relativeDate(lead.lastContact)} />
@@ -185,7 +231,7 @@ export function LeadDetailPanel({ lead, onClose }: LeadDetailPanelProps) {
             </div>
 
             {/* Map embed */}
-            <div className="rounded-xl overflow-hidden border h-40 bg-muted">
+            <div className="rounded-xl overflow-hidden border h-40 bg-muted relative group">
               <iframe
                 title="Localisation"
                 width="100%"
@@ -193,6 +239,14 @@ export function LeadDetailPanel({ lead, onClose }: LeadDetailPanelProps) {
                 style={{ border: 0 }}
                 src={`https://www.openstreetmap.org/export/embed.html?bbox=${lead.lng - 0.01},${lead.lat - 0.005},${lead.lng + 0.01},${lead.lat + 0.005}&layer=mapnik&marker=${lead.lat},${lead.lng}`}
               />
+              <a
+                href={`https://www.google.com/maps/search/?api=1&query=${lead.lat},${lead.lng}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="absolute top-2 right-2 w-8 h-8 rounded-lg bg-card/90 border flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-card"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
             </div>
           </div>
 
@@ -215,6 +269,9 @@ export function LeadDetailPanel({ lead, onClose }: LeadDetailPanelProps) {
               </TabsList>
 
               <TabsContent value="notes" className="mt-4 space-y-3">
+                {lead.notes.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-4">Aucune note. Ajoutez-en une ci-dessous.</p>
+                )}
                 {lead.notes.map(note => (
                   <div key={note.id} className="p-3 rounded-lg bg-muted/50 border">
                     <div className="flex items-center justify-between mb-1">
@@ -226,7 +283,7 @@ export function LeadDetailPanel({ lead, onClose }: LeadDetailPanelProps) {
                 ))}
                 <div className="flex gap-2">
                   <Textarea placeholder="Ajouter une note..." value={newNote} onChange={e => setNewNote(e.target.value)} rows={2} className="text-sm" />
-                  <Button size="icon" className="flex-shrink-0 self-end bg-primary text-primary-foreground">
+                  <Button size="icon" className="flex-shrink-0 self-end bg-primary text-primary-foreground" onClick={() => { if (newNote.trim()) { toast.success("Note ajoutée !"); setNewNote(""); } }}>
                     <Send className="w-4 h-4" />
                   </Button>
                 </div>
@@ -247,7 +304,7 @@ export function LeadDetailPanel({ lead, onClose }: LeadDetailPanelProps) {
                 ))}
                 <div className="flex gap-2">
                   <Input placeholder="Message interne..." value={newMessage} onChange={e => setNewMessage(e.target.value)} className="text-sm" />
-                  <Button size="icon" className="flex-shrink-0 bg-primary text-primary-foreground">
+                  <Button size="icon" className="flex-shrink-0 bg-primary text-primary-foreground" onClick={() => { if (newMessage.trim()) { toast.success("Message envoyé !"); setNewMessage(""); } }}>
                     <Send className="w-4 h-4" />
                   </Button>
                 </div>
@@ -286,14 +343,20 @@ export function LeadDetailPanel({ lead, onClose }: LeadDetailPanelProps) {
   );
 }
 
-function InfoCard({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string }) {
-  return (
-    <div className="p-3 rounded-lg bg-muted/50 border">
+function InfoCard({ icon: Icon, label, value, link }: { icon: React.ElementType; label: string; value: string; link?: string }) {
+  const content = (
+    <div className={`p-3 rounded-lg bg-muted/50 border ${link ? 'hover:bg-muted/80 cursor-pointer transition-colors group/card' : ''}`}>
       <div className="flex items-center gap-1.5 mb-1">
         <Icon className="w-3.5 h-3.5 text-muted-foreground" />
         <span className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">{label}</span>
+        {link && <ExternalLink className="w-2.5 h-2.5 text-muted-foreground opacity-0 group-hover/card:opacity-100 transition-opacity ml-auto" />}
       </div>
       <p className="text-sm font-medium truncate">{value}</p>
     </div>
   );
+
+  if (link) {
+    return <a href={link} target="_blank" rel="noopener noreferrer">{content}</a>;
+  }
+  return content;
 }

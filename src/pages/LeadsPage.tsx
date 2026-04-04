@@ -3,6 +3,8 @@ import { leads as allLeads, salesReps, statusConfig, type Lead, type LeadStatus 
 import { StatusBadge } from "@/components/crm/StatusBadge";
 import { LeadScoreBadge } from "@/components/crm/LeadScoreBadge";
 import { LeadDetailPanel } from "@/components/crm/LeadDetailPanel";
+import { QuickActions } from "@/components/crm/QuickActions";
+import { NewLeadDialog } from "@/components/crm/NewLeadDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -11,8 +13,8 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  Search, Plus, Download, Filter, ArrowUpDown, Users, UserPlus,
-  Mail, MoreHorizontal, Clock
+  Search, Download, ArrowUpDown, Users, UserPlus,
+  Mail, Clock
 } from "lucide-react";
 import { relativeDate } from "@/lib/dates";
 
@@ -75,7 +77,6 @@ export default function LeadsPage() {
     a.href = url; a.download = 'leads_export.csv'; a.click();
   };
 
-  // Status counts for quick filters
   const statusCounts = useMemo(() => {
     const counts: Record<string, number> = { all: allLeads.length };
     allLeads.forEach(l => { counts[l.status] = (counts[l.status] || 0) + 1; });
@@ -94,9 +95,7 @@ export default function LeadsPage() {
           <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={exportCSV}>
             <Download className="w-3.5 h-3.5" /> Exporter
           </Button>
-          <Button size="sm" className="gap-1.5 text-xs bg-primary text-primary-foreground">
-            <Plus className="w-3.5 h-3.5" /> Nouveau lead
-          </Button>
+          <NewLeadDialog />
         </div>
       </div>
 
@@ -181,7 +180,7 @@ export default function LeadsPage() {
                 <th className="p-3 text-left font-medium text-xs text-muted-foreground hidden lg:table-cell">Ville</th>
                 <th className="p-3 text-left font-medium text-xs text-muted-foreground hidden xl:table-cell">Commercial</th>
                 <th className="p-3 text-left font-medium text-xs text-muted-foreground hidden xl:table-cell">Dernier contact</th>
-                <th className="p-3 w-10"></th>
+                <th className="p-3 w-28 text-right font-medium text-xs text-muted-foreground">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -234,9 +233,7 @@ export default function LeadsPage() {
                       </Tooltip>
                     </td>
                     <td className="p-3" onClick={e => e.stopPropagation()}>
-                      <button className="w-7 h-7 rounded hover:bg-muted flex items-center justify-center">
-                        <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
-                      </button>
+                      <QuickActions phone={lead.phone} email={lead.email} name={lead.firstName} />
                     </td>
                   </tr>
                 );
