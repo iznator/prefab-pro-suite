@@ -10,6 +10,7 @@ import PipelinePage from "@/pages/PipelinePage";
 import MapPage from "@/pages/MapPage";
 import CalendarPage from "@/pages/CalendarPage";
 import ReportsPage from "@/pages/ReportsPage";
+import ConfigurateurPage from "@/pages/ConfigurateurPage";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,6 +29,7 @@ const App = () => (
             <Route path="/carte" element={<MapPage />} />
             <Route path="/calendrier" element={<CalendarPage />} />
             <Route path="/rapports" element={<ReportsPage />} />
+            <Route path="/configurateur" element={<ConfigurateurPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </CRMLayout>

@@ -1,6 +1,6 @@
 import { 
   Users, LayoutDashboard, Map, KanbanSquare, Settings, 
-  Home, BarChart3, CalendarDays, Keyboard
+  Home, BarChart3, CalendarDays, Keyboard, Calculator
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -31,6 +31,7 @@ const mainItems = [
   { title: "Carte", url: "/carte", icon: Map, shortcut: "4" },
   { title: "Calendrier", url: "/calendrier", icon: CalendarDays, shortcut: "5" },
   { title: "Rapports", url: "/rapports", icon: BarChart3, shortcut: "6" },
+  { title: "Configurateur", url: "/configurateur", icon: Calculator, shortcut: "7" },
 ];
 
 export function CRMSidebar() {
