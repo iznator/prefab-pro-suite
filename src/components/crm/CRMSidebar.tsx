@@ -1,6 +1,6 @@
 import { 
   Users, LayoutDashboard, Map, KanbanSquare, Settings, 
-  Home, BarChart3, CalendarDays, Keyboard
+  Home, BarChart3, CalendarDays, Keyboard, Calculator
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
