@@ -29,6 +29,7 @@ const App = () => (
             <Route path="/carte" element={<MapPage />} />
             <Route path="/calendrier" element={<CalendarPage />} />
             <Route path="/rapports" element={<ReportsPage />} />
+            <Route path="/configurateur" element={<ConfigurateurPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </CRMLayout>
