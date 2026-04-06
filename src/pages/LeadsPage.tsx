@@ -241,6 +241,16 @@ export default function LeadsPage() {
                   </tr>
                 );
               })}
+              {filteredLeads.length === 0 && (
+                <tr>
+                  <td colSpan={10}>
+                    <EmptyState
+                      type={search || statusFilter !== "all" ? "no-results" : "no-data"}
+                      action={search || statusFilter !== "all" ? { label: "Réinitialiser", onClick: () => { setSearch(""); setStatusFilter("all"); setAssigneeFilter("all"); } } : undefined}
+                    />
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
