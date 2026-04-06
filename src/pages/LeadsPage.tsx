@@ -208,7 +208,9 @@ export default function LeadsPage() {
                         </div>
                       </div>
                     </td>
-                    <td className="p-3"><StatusBadge status={lead.status} /></td>
+                    <td className="p-3" onClick={e => e.stopPropagation()}>
+                      <InlineStatusSelect status={lead.status} />
+                    </td>
                     <td className="p-3 hidden lg:table-cell text-xs">{lead.houseModel}</td>
                     <td className="p-3 hidden md:table-cell font-medium">{lead.budget.toLocaleString('fr-FR')} €</td>
                     <td className="p-3 hidden lg:table-cell text-xs text-muted-foreground">{lead.city}</td>
