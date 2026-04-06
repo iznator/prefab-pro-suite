@@ -115,27 +115,53 @@ export function LeadDetailPanel({ lead, onClose }: LeadDetailPanelProps) {
               <CopyButton text={lead.email} label="Email" />
             </div>
 
-            {/* Status pipeline stepper */}
-            <div className="mt-4 flex items-center gap-1">
-              {pipelineOrder.filter(s => s !== 'perdu').map((status, i) => {
-                const isActive = i <= currentIndex && displayStatus !== 'perdu';
-                const isCurrent = status === displayStatus;
-                return (
-                  <Tooltip key={status}>
-                    <TooltipTrigger asChild>
-                      <button
-                        onClick={() => setCurrentStatus(status)}
-                        className={`flex-1 h-2 rounded-full transition-all ${isCurrent ? 'h-3' : ''} ${isActive ? '' : 'bg-muted'}`}
-                        style={isActive ? { backgroundColor: `hsl(var(--tag-${statusConfig[status].color.replace('tag-', '')}))` } : undefined}
-                      />
-                    </TooltipTrigger>
-                    <TooltipContent side="top" className="text-xs">{statusConfig[status].label}</TooltipContent>
-                  </Tooltip>
-                );
-              })}
+            {/* Status pipeline stepper — visual with labels */}
+            <div className="mt-4">
+              <div className="flex items-center gap-1">
+                {pipelineOrder.filter(s => s !== 'perdu').map((status, i) => {
+                  const isActive = i <= currentIndex && displayStatus !== 'perdu';
+                  const isCurrent = status === displayStatus;
+                  return (
+                    <Tooltip key={status}>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={() => {
+                            setCurrentStatus(status);
+                            toast.success(`Statut mis à jour : ${statusConfig[status].label}`);
+                          }}
+                          className={`flex-1 h-2.5 rounded-full transition-all relative ${isCurrent ? 'h-3.5 ring-2 ring-offset-1 ring-offset-card' : ''} ${isActive ? '' : 'bg-muted'}`}
+                          style={{
+                            ...(isActive ? { backgroundColor: `hsl(var(--tag-${statusConfig[status].color.replace('tag-', '')}))` } : {}),
+                            ...(isCurrent ? { ringColor: `hsl(var(--tag-${statusConfig[status].color.replace('tag-', '')}))` } : {})
+                          }}
+                        />
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="text-xs font-medium">
+                        {statusConfig[status].label}
+                        {isCurrent && ' (actuel)'}
+                      </TooltipContent>
+                    </Tooltip>
+                  );
+                })}
+              </div>
+              {/* Labels under stepper */}
+              <div className="flex items-center gap-1 mt-1.5">
+                {pipelineOrder.filter(s => s !== 'perdu').map((status) => {
+                  const isCurrent = status === displayStatus;
+                  return (
+                    <span key={status} className={`flex-1 text-center text-[8px] leading-tight ${isCurrent ? 'font-bold text-foreground' : 'text-muted-foreground/60'}`}>
+                      {statusConfig[status].label}
+                    </span>
+                  );
+                })}
+              </div>
             </div>
-            <div className="flex items-center justify-between mt-2">
-              <Select value={displayStatus} onValueChange={(v) => setCurrentStatus(v as LeadStatus)}>
+
+            <div className="flex items-center justify-between mt-3">
+              <Select value={displayStatus} onValueChange={(v) => {
+                setCurrentStatus(v as LeadStatus);
+                toast.success(`Statut mis à jour : ${statusConfig[v as LeadStatus].label}`);
+              }}>
                 <SelectTrigger className="w-[180px] h-8 text-xs">
                   <SelectValue />
                 </SelectTrigger>
@@ -153,15 +179,14 @@ export function LeadDetailPanel({ lead, onClose }: LeadDetailPanelProps) {
               {currentIndex < 5 && displayStatus !== 'perdu' && (
                 <Button
                   size="sm"
-                  variant="outline"
-                  className="text-xs gap-1 h-8"
+                  className="text-xs gap-1.5 h-8 bg-primary text-primary-foreground"
                   onClick={() => {
                     const next = pipelineOrder[Math.min(currentIndex + 1, 5)];
                     setCurrentStatus(next);
                     toast.success(`Statut mis à jour : ${statusConfig[next].label}`);
                   }}
                 >
-                  Avancer <ChevronRight className="w-3 h-3" />
+                  Avancer vers {statusConfig[pipelineOrder[Math.min(currentIndex + 1, 5)]].label} <ChevronRight className="w-3 h-3" />
                 </Button>
               )}
             </div>

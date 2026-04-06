@@ -1,10 +1,11 @@
 import { useState, useMemo } from "react";
 import { leads as allLeads, salesReps, statusConfig, type Lead, type LeadStatus } from "@/data/mockData";
-import { StatusBadge } from "@/components/crm/StatusBadge";
+import { InlineStatusSelect } from "@/components/crm/InlineStatusSelect";
 import { LeadScoreBadge } from "@/components/crm/LeadScoreBadge";
 import { LeadDetailPanel } from "@/components/crm/LeadDetailPanel";
 import { QuickActions } from "@/components/crm/QuickActions";
 import { NewLeadDialog } from "@/components/crm/NewLeadDialog";
+import { EmptyState } from "@/components/crm/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -207,7 +208,9 @@ export default function LeadsPage() {
                         </div>
                       </div>
                     </td>
-                    <td className="p-3"><StatusBadge status={lead.status} /></td>
+                    <td className="p-3" onClick={e => e.stopPropagation()}>
+                      <InlineStatusSelect status={lead.status} />
+                    </td>
                     <td className="p-3 hidden lg:table-cell text-xs">{lead.houseModel}</td>
                     <td className="p-3 hidden md:table-cell font-medium">{lead.budget.toLocaleString('fr-FR')} €</td>
                     <td className="p-3 hidden lg:table-cell text-xs text-muted-foreground">{lead.city}</td>
@@ -238,6 +241,16 @@ export default function LeadsPage() {
                   </tr>
                 );
               })}
+              {filteredLeads.length === 0 && (
+                <tr>
+                  <td colSpan={10}>
+                    <EmptyState
+                      type={search || statusFilter !== "all" ? "no-results" : "no-data"}
+                      action={search || statusFilter !== "all" ? { label: "Réinitialiser", onClick: () => { setSearch(""); setStatusFilter("all"); setAssigneeFilter("all"); } } : undefined}
+                    />
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
