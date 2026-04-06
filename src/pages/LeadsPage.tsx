@@ -1,10 +1,11 @@
 import { useState, useMemo } from "react";
 import { leads as allLeads, salesReps, statusConfig, type Lead, type LeadStatus } from "@/data/mockData";
-import { StatusBadge } from "@/components/crm/StatusBadge";
+import { InlineStatusSelect } from "@/components/crm/InlineStatusSelect";
 import { LeadScoreBadge } from "@/components/crm/LeadScoreBadge";
 import { LeadDetailPanel } from "@/components/crm/LeadDetailPanel";
 import { QuickActions } from "@/components/crm/QuickActions";
 import { NewLeadDialog } from "@/components/crm/NewLeadDialog";
+import { EmptyState } from "@/components/crm/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
