@@ -11,6 +11,7 @@ import MapPage from "@/pages/MapPage";
 import CalendarPage from "@/pages/CalendarPage";
 import ReportsPage from "@/pages/ReportsPage";
 import ConfigurateurPage from "@/pages/ConfigurateurPage";
+import ReseauPage from "@/pages/ReseauPage";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,6 +31,7 @@ const App = () => (
             <Route path="/calendrier" element={<CalendarPage />} />
             <Route path="/rapports" element={<ReportsPage />} />
             <Route path="/configurateur" element={<ConfigurateurPage />} />
+            <Route path="/reseau" element={<ReseauPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </CRMLayout>
