@@ -11,6 +11,7 @@ import MapPage from "@/pages/MapPage";
 import CalendarPage from "@/pages/CalendarPage";
 import ReportsPage from "@/pages/ReportsPage";
 import ConfigurateurPage from "@/pages/ConfigurateurPage";
+import ReseauPage from "@/pages/ReseauPage";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
