@@ -92,11 +92,11 @@ export function LeadDetailPanel({ lead, onClose }: LeadDetailPanelProps) {
                   {lead.firstName[0]}{lead.lastName[0]}
                 </div>
                 <div>
-                  <h2 className="font-display font-bold text-xl">{lead.firstName} {lead.lastName}</h2>
-                  <p className="text-sm text-muted-foreground">{lead.city} • {lead.source}</p>
-                  <div className="flex items-center gap-2 mt-1.5">
+                  <div className="flex items-center gap-2.5">
+                    <h2 className="font-display font-bold text-xl">{lead.firstName} {lead.lastName}</h2>
                     <LeadScoreBadge score={lead.score} />
                   </div>
+                  <p className="text-sm text-muted-foreground">{lead.city} • {lead.source}</p>
                 </div>
               </div>
               <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-muted flex items-center justify-center transition-colors">
@@ -236,9 +236,12 @@ export function LeadDetailPanel({ lead, onClose }: LeadDetailPanelProps) {
 
           {/* Tabs — moved to top */}
           <div className="flex-1 flex flex-col min-h-0">
-            <Tabs defaultValue="chat" className="flex flex-col flex-1 min-h-0">
+            <Tabs defaultValue="info" className="flex flex-col flex-1 min-h-0">
               <div className="px-6 pt-3">
                 <TabsList className="w-full bg-muted">
+                  <TabsTrigger value="info" className="flex-1 gap-1.5 text-xs">
+                    <User className="w-3.5 h-3.5" /> Infos
+                  </TabsTrigger>
                   <TabsTrigger value="chat" className="flex-1 gap-1.5 text-xs">
                     <MessageSquare className="w-3.5 h-3.5" /> Chat ({lead.messages.length})
                   </TabsTrigger>
@@ -250,9 +253,6 @@ export function LeadDetailPanel({ lead, onClose }: LeadDetailPanelProps) {
                   </TabsTrigger>
                   <TabsTrigger value="files" className="flex-1 gap-1.5 text-xs">
                     <Paperclip className="w-3.5 h-3.5" /> Fichiers
-                  </TabsTrigger>
-                  <TabsTrigger value="info" className="flex-1 gap-1.5 text-xs">
-                    <User className="w-3.5 h-3.5" /> Infos
                   </TabsTrigger>
                 </TabsList>
               </div>

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Paperclip, Smile, Reply, X, Image, FileText, Check, CheckCheck } from "lucide-react";
+import { Send, Paperclip, Smile, Reply, X, Image, FileText, Check, CheckCheck, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
@@ -43,6 +43,8 @@ export function TelegramChat({ messages: initialMessages, leadName }: TelegramCh
   const [replyTo, setReplyTo] = useState<Message | null>(null);
   const [showEmoji, setShowEmoji] = useState(false);
   const [showReactions, setShowReactions] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragCounter = useRef(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -120,6 +122,57 @@ export function TelegramChat({ messages: initialMessages, leadName }: TelegramCh
     e.target.value = "";
   };
 
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current++;
+    if (e.dataTransfer.types.includes("Files")) {
+      setIsDragging(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current--;
+    if (dragCounter.current === 0) {
+      setIsDragging(false);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    dragCounter.current = 0;
+
+    const files = e.dataTransfer.files;
+    if (!files?.length) return;
+
+    Array.from(files).forEach(file => {
+      const isImage = file.type.startsWith("image/");
+      const newMsg: Message = {
+        id: `msg-${Date.now()}-${file.name}`,
+        author: "Vous",
+        content: isImage ? "" : file.name,
+        createdAt: new Date().toISOString(),
+        isMe: true,
+        type: isImage ? "image" : "file",
+        fileName: file.name,
+        fileUrl: URL.createObjectURL(file),
+        reactions: [],
+        read: false,
+      };
+      setMsgs(prev => [...prev, newMsg]);
+      toast.success(`${isImage ? "Image" : "Fichier"} envoyé !`);
+    });
+  };
+
   const addReaction = (msgId: string, emoji: string) => {
     setMsgs(prev =>
       prev.map(m => {
@@ -170,8 +223,30 @@ export function TelegramChat({ messages: initialMessages, leadName }: TelegramCh
   const grouped = groupByDate(msgs);
 
   return (
-    <div className="flex flex-col h-[420px]">
-      {/* Messages area */}
+    <div
+      className="flex flex-col h-[420px] relative"
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
+      {/* Drag overlay */}
+      <AnimatePresence>
+        {isDragging && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-20 bg-primary/10 backdrop-blur-sm border-2 border-dashed border-primary rounded-lg flex items-center justify-center"
+          >
+            <div className="flex flex-col items-center gap-2 text-primary">
+              <Upload className="w-10 h-10" />
+              <span className="text-sm font-semibold">Déposez vos fichiers ici</span>
+              <span className="text-xs text-muted-foreground">Images, PDF, documents…</span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <div
         ref={scrollRef}
         className="flex-1 overflow-y-auto px-3 py-3 space-y-1"
