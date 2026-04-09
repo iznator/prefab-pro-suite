@@ -844,9 +844,9 @@ export default function ReseauPage() {
         <TabsContent value="zones">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {zonesList.map(zone => (
-              <ZoneCard key={zone.id} zone={zone} users={users} onEdit={() => toast.info('Édition de zone — Lovable Cloud nécessaire pour persister')} />
+              <ZoneCard key={zone.id} zone={zone} users={users} onEdit={(z) => setEditingZone(z)} />
             ))}
-            <Card className="border-dashed flex items-center justify-center min-h-[180px] cursor-pointer hover:bg-muted/30 transition-colors" onClick={() => toast.info('Création de zone — Lovable Cloud nécessaire pour persister')}>
+            <Card className="border-dashed flex items-center justify-center min-h-[180px] cursor-pointer hover:bg-muted/30 transition-colors" onClick={() => setCreatingZone(true)}>
               <div className="text-center text-muted-foreground">
                 <Globe className="w-8 h-8 mx-auto mb-2 opacity-40" />
                 <p className="text-sm font-medium">Créer une zone</p>
@@ -854,6 +854,25 @@ export default function ReseauPage() {
               </div>
             </Card>
           </div>
+
+          {/* Zone create dialog */}
+          {creatingZone && (
+            <ZoneDialog
+              open={creatingZone}
+              onOpenChange={setCreatingZone}
+              onSave={(zone) => setZonesList(prev => [...prev, zone])}
+            />
+          )}
+
+          {/* Zone edit dialog */}
+          {editingZone && (
+            <ZoneDialog
+              zone={editingZone}
+              open={!!editingZone}
+              onOpenChange={(open) => { if (!open) setEditingZone(null); }}
+              onSave={(zone) => setZonesList(prev => prev.map(z => z.id === zone.id ? zone : z))}
+            />
+          )}
         </TabsContent>
 
         {/* ── Dispatch tab ───────────────── */}
