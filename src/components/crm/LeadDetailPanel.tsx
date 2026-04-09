@@ -6,6 +6,7 @@ import {
   Send, User, Calendar, Home, Euro, ChevronRight, History,
   Copy, ExternalLink, Check
 } from "lucide-react";
+import { TelegramChat } from "./TelegramChat";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
@@ -233,67 +234,34 @@ export function LeadDetailPanel({ lead, onClose }: LeadDetailPanelProps) {
             )}
           </AnimatePresence>
 
-          {/* Info cards */}
-          <div className="p-6 space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <InfoCard icon={Home} label="Modèle" value={lead.houseModel} />
-              <InfoCard icon={Euro} label="Budget" value={`${lead.budget.toLocaleString('fr-FR')} €`} />
-              <InfoCard icon={MapPin} label="Adresse" value={`${lead.address}, ${lead.postalCode} ${lead.city}`} link={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${lead.address}, ${lead.postalCode} ${lead.city}`)}`} />
-              <InfoCard icon={User} label="Commercial" value={rep?.name || '—'} />
-              <InfoCard icon={Calendar} label="Créé le" value={new Date(lead.createdAt).toLocaleDateString('fr-FR')} />
-              <InfoCard icon={Calendar} label="Dernier contact" value={relativeDate(lead.lastContact)} />
-            </div>
-
-            {/* Tags */}
-            <div>
-              <p className="text-xs font-medium text-muted-foreground mb-2">Tags</p>
-              <div className="flex flex-wrap gap-1.5">
-                {lead.tags.map(tag => (
-                  <span key={tag} className="px-2.5 py-1 rounded-md bg-muted text-xs font-medium">{tag}</span>
-                ))}
-                <button className="px-2.5 py-1 rounded-md border border-dashed text-xs text-muted-foreground hover:bg-muted transition-colors">+ Tag</button>
+          {/* Tabs — moved to top */}
+          <div className="flex-1 flex flex-col min-h-0">
+            <Tabs defaultValue="chat" className="flex flex-col flex-1 min-h-0">
+              <div className="px-6 pt-3">
+                <TabsList className="w-full bg-muted">
+                  <TabsTrigger value="chat" className="flex-1 gap-1.5 text-xs">
+                    <MessageSquare className="w-3.5 h-3.5" /> Chat ({lead.messages.length})
+                  </TabsTrigger>
+                  <TabsTrigger value="notes" className="flex-1 gap-1.5 text-xs">
+                    <StickyNote className="w-3.5 h-3.5" /> Notes ({lead.notes.length})
+                  </TabsTrigger>
+                  <TabsTrigger value="timeline" className="flex-1 gap-1.5 text-xs">
+                    <History className="w-3.5 h-3.5" /> Historique
+                  </TabsTrigger>
+                  <TabsTrigger value="files" className="flex-1 gap-1.5 text-xs">
+                    <Paperclip className="w-3.5 h-3.5" /> Fichiers
+                  </TabsTrigger>
+                  <TabsTrigger value="info" className="flex-1 gap-1.5 text-xs">
+                    <User className="w-3.5 h-3.5" /> Infos
+                  </TabsTrigger>
+                </TabsList>
               </div>
-            </div>
 
-            {/* Map embed */}
-            <div className="rounded-xl overflow-hidden border h-40 bg-muted relative group">
-              <iframe
-                title="Localisation"
-                width="100%"
-                height="100%"
-                style={{ border: 0 }}
-                src={`https://www.openstreetmap.org/export/embed.html?bbox=${lead.lng - 0.01},${lead.lat - 0.005},${lead.lng + 0.01},${lead.lat + 0.005}&layer=mapnik&marker=${lead.lat},${lead.lng}`}
-              />
-              <a
-                href={`https://www.google.com/maps/search/?api=1&query=${lead.lat},${lead.lng}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="absolute top-2 right-2 w-8 h-8 rounded-lg bg-card/90 border flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-card"
-              >
-                <ExternalLink className="w-3.5 h-3.5" />
-              </a>
-            </div>
-          </div>
+              <TabsContent value="chat" className="flex-1 min-h-0 mt-0 px-0">
+                <TelegramChat messages={lead.messages} leadName={`${lead.firstName} ${lead.lastName}`} />
+              </TabsContent>
 
-          {/* Tabs */}
-          <div className="px-6 pb-6">
-            <Tabs defaultValue="notes">
-              <TabsList className="w-full bg-muted">
-                <TabsTrigger value="notes" className="flex-1 gap-1.5 text-xs">
-                  <StickyNote className="w-3.5 h-3.5" /> Notes ({lead.notes.length})
-                </TabsTrigger>
-                <TabsTrigger value="chat" className="flex-1 gap-1.5 text-xs">
-                  <MessageSquare className="w-3.5 h-3.5" /> Chat ({lead.messages.length})
-                </TabsTrigger>
-                <TabsTrigger value="timeline" className="flex-1 gap-1.5 text-xs">
-                  <History className="w-3.5 h-3.5" /> Historique
-                </TabsTrigger>
-                <TabsTrigger value="files" className="flex-1 gap-1.5 text-xs">
-                  <Paperclip className="w-3.5 h-3.5" /> Fichiers
-                </TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="notes" className="mt-4 space-y-3">
+              <TabsContent value="notes" className="mt-0 px-6 py-4 space-y-3 overflow-y-auto">
                 {lead.notes.length === 0 && (
                   <p className="text-sm text-muted-foreground text-center py-4">Aucune note. Ajoutez-en une ci-dessous.</p>
                 )}
@@ -314,28 +282,7 @@ export function LeadDetailPanel({ lead, onClose }: LeadDetailPanelProps) {
                 </div>
               </TabsContent>
 
-              <TabsContent value="chat" className="mt-4 space-y-3">
-                {lead.messages.length === 0 && (
-                  <p className="text-sm text-muted-foreground text-center py-4">Aucun message pour l'instant</p>
-                )}
-                {lead.messages.map(msg => (
-                  <div key={msg.id} className="p-3 rounded-lg bg-muted/50 border">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-medium">{msg.author}</span>
-                      <span className="text-xs text-muted-foreground">{relativeDate(msg.createdAt)}</span>
-                    </div>
-                    <p className="text-sm">{msg.content}</p>
-                  </div>
-                ))}
-                <div className="flex gap-2">
-                  <Input placeholder="Message interne..." value={newMessage} onChange={e => setNewMessage(e.target.value)} className="text-sm" />
-                  <Button size="icon" className="flex-shrink-0 bg-primary text-primary-foreground" onClick={() => { if (newMessage.trim()) { toast.success("Message envoyé !"); setNewMessage(""); } }}>
-                    <Send className="w-4 h-4" />
-                  </Button>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="timeline" className="mt-4">
+              <TabsContent value="timeline" className="mt-0 px-6 py-4 overflow-y-auto">
                 <div className="relative pl-6 space-y-4">
                   <div className="absolute left-2 top-2 bottom-2 w-px bg-border" />
                   {timeline.map((evt, i) => (
@@ -353,11 +300,52 @@ export function LeadDetailPanel({ lead, onClose }: LeadDetailPanelProps) {
                 </div>
               </TabsContent>
 
-              <TabsContent value="files" className="mt-4">
+              <TabsContent value="files" className="mt-0 px-6 py-4">
                 <div className="border-2 border-dashed rounded-xl p-8 text-center">
                   <Paperclip className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
                   <p className="text-sm text-muted-foreground">Glissez vos fichiers ici ou</p>
                   <Button size="sm" variant="outline" className="mt-2 text-xs">Parcourir</Button>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="info" className="mt-0 px-6 py-4 space-y-4 overflow-y-auto">
+                <div className="grid grid-cols-2 gap-3">
+                  <InfoCard icon={Home} label="Modèle" value={lead.houseModel} />
+                  <InfoCard icon={Euro} label="Budget" value={`${lead.budget.toLocaleString('fr-FR')} €`} />
+                  <InfoCard icon={MapPin} label="Adresse" value={`${lead.address}, ${lead.postalCode} ${lead.city}`} link={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${lead.address}, ${lead.postalCode} ${lead.city}`)}`} />
+                  <InfoCard icon={User} label="Commercial" value={rep?.name || '—'} />
+                  <InfoCard icon={Calendar} label="Créé le" value={new Date(lead.createdAt).toLocaleDateString('fr-FR')} />
+                  <InfoCard icon={Calendar} label="Dernier contact" value={relativeDate(lead.lastContact)} />
+                </div>
+
+                {/* Tags */}
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-2">Tags</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {lead.tags.map(tag => (
+                      <span key={tag} className="px-2.5 py-1 rounded-md bg-muted text-xs font-medium">{tag}</span>
+                    ))}
+                    <button className="px-2.5 py-1 rounded-md border border-dashed text-xs text-muted-foreground hover:bg-muted transition-colors">+ Tag</button>
+                  </div>
+                </div>
+
+                {/* Map embed */}
+                <div className="rounded-xl overflow-hidden border h-40 bg-muted relative group">
+                  <iframe
+                    title="Localisation"
+                    width="100%"
+                    height="100%"
+                    style={{ border: 0 }}
+                    src={`https://www.openstreetmap.org/export/embed.html?bbox=${lead.lng - 0.01},${lead.lat - 0.005},${lead.lng + 0.01},${lead.lat + 0.005}&layer=mapnik&marker=${lead.lat},${lead.lng}`}
+                  />
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${lead.lat},${lead.lng}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="absolute top-2 right-2 w-8 h-8 rounded-lg bg-card/90 border flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-card"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
                 </div>
               </TabsContent>
             </Tabs>
