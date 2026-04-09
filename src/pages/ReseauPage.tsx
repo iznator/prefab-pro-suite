@@ -585,14 +585,111 @@ function DispatchTab({ users, zones }: { users: NetworkUser[]; zones: Zone[] }) 
   );
 }
 
+// ── Zone edit/create dialog ────────────────────────────
+function ZoneDialog({ zone, onSave, open, onOpenChange }: {
+  zone?: Zone;
+  onSave: (zone: Zone) => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const [name, setName] = useState(zone?.name || '');
+  const [color, setColor] = useState(zone?.color || 'hsl(210, 80%, 55%)');
+  const [selectedDepts, setSelectedDepts] = useState<string[]>(zone?.departments || []);
+  const [deptSearch, setDeptSearch] = useState('');
+
+  const filteredDepts = Object.entries(frenchDepartments).filter(([code, nom]) =>
+    !deptSearch || code.includes(deptSearch) || nom.toLowerCase().includes(deptSearch.toLowerCase())
+  );
+
+  const toggleDept = (code: string) => {
+    setSelectedDepts(prev => prev.includes(code) ? prev.filter(d => d !== code) : [...prev, code]);
+  };
+
+  const handleSubmit = () => {
+    if (!name || selectedDepts.length === 0) {
+      toast.error('Nom et au moins un département requis');
+      return;
+    }
+    onSave({
+      id: zone?.id || `z${Date.now()}`,
+      name, color, departments: selectedDepts,
+    });
+    onOpenChange(false);
+    toast.success(zone ? `Zone "${name}" modifiée` : `Zone "${name}" créée`);
+  };
+
+  const colorOptions = [
+    'hsl(210, 80%, 55%)', 'hsl(38, 90%, 55%)', 'hsl(150, 60%, 45%)',
+    'hsl(280, 60%, 55%)', 'hsl(0, 70%, 55%)', 'hsl(170, 70%, 45%)',
+    'hsl(320, 60%, 55%)', 'hsl(45, 80%, 50%)',
+  ];
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="font-display">{zone ? 'Modifier la zone' : 'Créer une zone'}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div>
+            <Label className="text-xs">Nom de la zone *</Label>
+            <Input value={name} onChange={e => setName(e.target.value)} placeholder="Ex: Grand Est" />
+          </div>
+          <div>
+            <Label className="text-xs">Couleur</Label>
+            <div className="flex gap-2 mt-1.5">
+              {colorOptions.map(c => (
+                <button
+                  key={c}
+                  onClick={() => setColor(c)}
+                  className={`w-7 h-7 rounded-full border-2 transition-all ${color === c ? 'border-foreground scale-110' : 'border-transparent'}`}
+                  style={{ backgroundColor: c }}
+                />
+              ))}
+            </div>
+          </div>
+          <div>
+            <Label className="text-xs">Départements * ({selectedDepts.length} sélectionnés)</Label>
+            <Input
+              className="mt-1.5 mb-2"
+              placeholder="Rechercher un département..."
+              value={deptSearch}
+              onChange={e => setDeptSearch(e.target.value)}
+            />
+            <ScrollArea className="h-48 border rounded-md p-2">
+              <div className="flex flex-wrap gap-1">
+                {filteredDepts.map(([code, nom]) => (
+                  <button
+                    key={code}
+                    onClick={() => toggleDept(code)}
+                    className={`px-2 py-1 rounded text-[11px] font-medium border transition-colors ${selectedDepts.includes(code) ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted text-muted-foreground border-border hover:bg-muted/80'}`}
+                  >
+                    {code} — {nom}
+                  </button>
+                ))}
+              </div>
+            </ScrollArea>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>Annuler</Button>
+          <Button onClick={handleSubmit}>{zone ? 'Enregistrer' : 'Créer'}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ── Main page ──────────────────────────────────────────
 export default function ReseauPage() {
   const [users, setUsers] = useState(initialUsers);
-  const [zonesList] = useState(initialZones);
+  const [zonesList, setZonesList] = useState(initialZones);
   const [selectedUser, setSelectedUser] = useState<NetworkUser | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterRole, setFilterRole] = useState<string>('all');
   const [editingUser, setEditingUser] = useState<NetworkUser | null>(null);
+  const [editingZone, setEditingZone] = useState<Zone | null>(null);
+  const [creatingZone, setCreatingZone] = useState(false);
 
   const rootUsers = useMemo(() => {
     return users.filter(u => u.parentId === null);
@@ -747,9 +844,9 @@ export default function ReseauPage() {
         <TabsContent value="zones">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {zonesList.map(zone => (
-              <ZoneCard key={zone.id} zone={zone} users={users} onEdit={() => toast.info('Édition de zone — Lovable Cloud nécessaire pour persister')} />
+              <ZoneCard key={zone.id} zone={zone} users={users} onEdit={(z) => setEditingZone(z)} />
             ))}
-            <Card className="border-dashed flex items-center justify-center min-h-[180px] cursor-pointer hover:bg-muted/30 transition-colors" onClick={() => toast.info('Création de zone — Lovable Cloud nécessaire pour persister')}>
+            <Card className="border-dashed flex items-center justify-center min-h-[180px] cursor-pointer hover:bg-muted/30 transition-colors" onClick={() => setCreatingZone(true)}>
               <div className="text-center text-muted-foreground">
                 <Globe className="w-8 h-8 mx-auto mb-2 opacity-40" />
                 <p className="text-sm font-medium">Créer une zone</p>
@@ -757,6 +854,25 @@ export default function ReseauPage() {
               </div>
             </Card>
           </div>
+
+          {/* Zone create dialog */}
+          {creatingZone && (
+            <ZoneDialog
+              open={creatingZone}
+              onOpenChange={setCreatingZone}
+              onSave={(zone) => setZonesList(prev => [...prev, zone])}
+            />
+          )}
+
+          {/* Zone edit dialog */}
+          {editingZone && (
+            <ZoneDialog
+              zone={editingZone}
+              open={!!editingZone}
+              onOpenChange={(open) => { if (!open) setEditingZone(null); }}
+              onSave={(zone) => setZonesList(prev => prev.map(z => z.id === zone.id ? zone : z))}
+            />
+          )}
         </TabsContent>
 
         {/* ── Dispatch tab ───────────────── */}
