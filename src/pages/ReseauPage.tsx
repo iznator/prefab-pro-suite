@@ -588,7 +588,7 @@ function DispatchTab({ users, zones }: { users: NetworkUser[]; zones: Zone[] }) 
 // ── Main page ──────────────────────────────────────────
 export default function ReseauPage() {
   const [users, setUsers] = useState(initialUsers);
-  const [zonesList] = useState(initialZones);
+  const [zonesList, setZonesList] = useState(initialZones);
   const [selectedUser, setSelectedUser] = useState<NetworkUser | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterRole, setFilterRole] = useState<string>('all');
