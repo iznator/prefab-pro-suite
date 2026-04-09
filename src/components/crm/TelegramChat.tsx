@@ -223,8 +223,30 @@ export function TelegramChat({ messages: initialMessages, leadName }: TelegramCh
   const grouped = groupByDate(msgs);
 
   return (
-    <div className="flex flex-col h-[420px]">
-      {/* Messages area */}
+    <div
+      className="flex flex-col h-[420px] relative"
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
+      {/* Drag overlay */}
+      <AnimatePresence>
+        {isDragging && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-20 bg-primary/10 backdrop-blur-sm border-2 border-dashed border-primary rounded-lg flex items-center justify-center"
+          >
+            <div className="flex flex-col items-center gap-2 text-primary">
+              <Upload className="w-10 h-10" />
+              <span className="text-sm font-semibold">Déposez vos fichiers ici</span>
+              <span className="text-xs text-muted-foreground">Images, PDF, documents…</span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <div
         ref={scrollRef}
         className="flex-1 overflow-y-auto px-3 py-3 space-y-1"
