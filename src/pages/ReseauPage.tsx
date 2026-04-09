@@ -140,12 +140,136 @@ function ZoneCard({ zone, users, onEdit }: { zone: Zone; users: NetworkUser[]; o
   );
 }
 
+// ── Edit user dialog ───────────────────────────────────
+function EditUserDialog({ user, users, zones, onSave, open, onOpenChange }: {
+  user: NetworkUser;
+  users: NetworkUser[];
+  zones: Zone[];
+  onSave: (updated: NetworkUser) => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const [firstName, setFirstName] = useState(user.firstName);
+  const [lastName, setLastName] = useState(user.lastName);
+  const [email, setEmail] = useState(user.email);
+  const [phone, setPhone] = useState(user.phone);
+  const [role, setRole] = useState<UserRole>(user.role);
+  const [parentId, setParentId] = useState(user.parentId || '');
+  const [selectedZones, setSelectedZones] = useState<string[]>(user.zoneIds);
+
+  const possibleParents = users.filter(u => {
+    if (u.id === user.id) return false;
+    if (role === 'directeur') return u.role === 'admin';
+    if (role === 'manager') return u.role === 'directeur';
+    if (role === 'commercial') return u.role === 'manager' || u.role === 'directeur';
+    return false;
+  });
+
+  const toggleZone = (zid: string) => {
+    setSelectedZones(prev => prev.includes(zid) ? prev.filter(z => z !== zid) : [...prev, zid]);
+  };
+
+  const handleSubmit = () => {
+    if (!firstName || !lastName || !email) {
+      toast.error('Veuillez remplir tous les champs obligatoires');
+      return;
+    }
+    const avatar = `${firstName[0]}${lastName[0]}`.toUpperCase();
+    onSave({
+      ...user,
+      firstName, lastName, email, phone, avatar,
+      role, parentId: parentId || null,
+      zoneIds: selectedZones,
+    });
+    onOpenChange(false);
+    toast.success(`${firstName} ${lastName} mis à jour`);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="font-display">Modifier le membre</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-xs">Prénom *</Label>
+              <Input value={firstName} onChange={e => setFirstName(e.target.value)} />
+            </div>
+            <div>
+              <Label className="text-xs">Nom *</Label>
+              <Input value={lastName} onChange={e => setLastName(e.target.value)} />
+            </div>
+          </div>
+          <div>
+            <Label className="text-xs">Email *</Label>
+            <Input value={email} onChange={e => setEmail(e.target.value)} type="email" />
+          </div>
+          <div>
+            <Label className="text-xs">Téléphone</Label>
+            <Input value={phone} onChange={e => setPhone(e.target.value)} />
+          </div>
+          {user.role !== 'admin' && (
+            <>
+              <div>
+                <Label className="text-xs">Rôle *</Label>
+                <Select value={role} onValueChange={(v) => { setRole(v as UserRole); setParentId(''); }}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="directeur">🎯 Directeur</SelectItem>
+                    <SelectItem value="manager">📋 Manager</SelectItem>
+                    <SelectItem value="commercial">💼 Commercial</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">Supervisé par *</Label>
+                <Select value={parentId} onValueChange={setParentId}>
+                  <SelectTrigger><SelectValue placeholder="Choisir un superviseur" /></SelectTrigger>
+                  <SelectContent>
+                    {possibleParents.map(p => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {roleConfig[p.role].icon} {getUserFullName(p)} — {roleConfig[p.role].label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </>
+          )}
+          <div>
+            <Label className="text-xs">Zones</Label>
+            <div className="flex flex-wrap gap-1.5 mt-1.5">
+              {zones.map(z => (
+                <button
+                  key={z.id}
+                  onClick={() => toggleZone(z.id)}
+                  className={`px-2.5 py-1 rounded-md text-xs font-medium border transition-colors ${selectedZones.includes(z.id) ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted text-muted-foreground border-border hover:bg-muted/80'}`}
+                >
+                  {z.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>Annuler</Button>
+          <Button onClick={handleSubmit}>Enregistrer</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ── User detail panel ──────────────────────────────────
-function UserDetail({ user, users, zones, onClose }: {
+function UserDetail({ user, users, zones, onClose, onEdit, onToggleActive }: {
   user: NetworkUser;
   users: NetworkUser[];
   zones: Zone[];
   onClose: () => void;
+  onEdit: (u: NetworkUser) => void;
+  onToggleActive: (u: NetworkUser) => void;
 }) {
   const rc = roleConfig[user.role];
   const children = users.filter(u => u.parentId === user.id);
@@ -244,8 +368,10 @@ function UserDetail({ user, users, zones, onClose }: {
 
       {/* Actions */}
       <div className="flex gap-2">
-        <Button size="sm" variant="outline" className="flex-1 gap-1.5"><Edit2 className="w-3.5 h-3.5" /> Modifier</Button>
-        <Button size="sm" variant="outline" className="flex-1 gap-1.5">
+        <Button size="sm" variant="outline" className="flex-1 gap-1.5" onClick={() => onEdit(user)}>
+          <Edit2 className="w-3.5 h-3.5" /> Modifier
+        </Button>
+        <Button size="sm" variant="outline" className="flex-1 gap-1.5" onClick={() => onToggleActive(user)}>
           {user.isActive ? <><ToggleLeft className="w-3.5 h-3.5" /> Désactiver</> : <><ToggleRight className="w-3.5 h-3.5" /> Activer</>}
         </Button>
       </div>
@@ -466,6 +592,7 @@ export default function ReseauPage() {
   const [selectedUser, setSelectedUser] = useState<NetworkUser | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterRole, setFilterRole] = useState<string>('all');
+  const [editingUser, setEditingUser] = useState<NetworkUser | null>(null);
 
   const rootUsers = useMemo(() => {
     return users.filter(u => u.parentId === null);
@@ -497,8 +624,42 @@ export default function ReseauPage() {
     setUsers(prev => [...prev, user]);
   };
 
+  const handleUpdateUser = (updated: NetworkUser) => {
+    setUsers(prev => prev.map(u => u.id === updated.id ? updated : u));
+    if (selectedUser?.id === updated.id) setSelectedUser(updated);
+  };
+
+  const handleToggleActive = (user: NetworkUser) => {
+    const updated = { ...user, isActive: !user.isActive };
+    handleUpdateUser(updated);
+    toast.success(`${getUserFullName(user)} ${updated.isActive ? 'activé' : 'désactivé'}`);
+  };
+
+  const handleDeleteUser = (user: NetworkUser) => {
+    const children = users.filter(u => u.parentId === user.id);
+    if (children.length > 0) {
+      toast.error(`Impossible de supprimer ${getUserFullName(user)} — il supervise ${children.length} membre(s)`);
+      return;
+    }
+    setUsers(prev => prev.filter(u => u.id !== user.id));
+    if (selectedUser?.id === user.id) setSelectedUser(null);
+    toast.success(`${getUserFullName(user)} supprimé`);
+  };
+
   return (
     <div className="space-y-6 max-w-[1400px] mx-auto">
+      {/* Edit dialog */}
+      {editingUser && (
+        <EditUserDialog
+          user={editingUser}
+          users={users}
+          zones={zonesList}
+          onSave={handleUpdateUser}
+          open={!!editingUser}
+          onOpenChange={(open) => { if (!open) setEditingUser(null); }}
+        />
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -563,7 +724,14 @@ export default function ReseauPage() {
               </CardHeader>
               <CardContent className="p-4">
                 {selectedUser ? (
-                  <UserDetail user={selectedUser} users={users} zones={zonesList} onClose={() => setSelectedUser(null)} />
+                  <UserDetail
+                    user={selectedUser}
+                    users={users}
+                    zones={zonesList}
+                    onClose={() => setSelectedUser(null)}
+                    onEdit={(u) => setEditingUser(u)}
+                    onToggleActive={handleToggleActive}
+                  />
                 ) : (
                   <div className="text-center py-12 text-muted-foreground">
                     <Users className="w-12 h-12 mx-auto mb-3 opacity-30" />
@@ -676,10 +844,16 @@ export default function ReseauPage() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                <DropdownMenuItem><Edit2 className="w-3.5 h-3.5 mr-2" /> Modifier</DropdownMenuItem>
-                                <DropdownMenuItem><ArrowDownUp className="w-3.5 h-3.5 mr-2" /> Réassigner</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setEditingUser(user)}>
+                                  <Edit2 className="w-3.5 h-3.5 mr-2" /> Modifier
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleToggleActive(user)}>
+                                  {user.isActive ? <><ToggleLeft className="w-3.5 h-3.5 mr-2" /> Désactiver</> : <><ToggleRight className="w-3.5 h-3.5 mr-2" /> Activer</>}
+                                </DropdownMenuItem>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem className="text-destructive"><Trash2 className="w-3.5 h-3.5 mr-2" /> Supprimer</DropdownMenuItem>
+                                <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteUser(user)}>
+                                  <Trash2 className="w-3.5 h-3.5 mr-2" /> Supprimer
+                                </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </td>
