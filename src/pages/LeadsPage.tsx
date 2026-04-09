@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
-import { leads as allLeads, salesReps, statusConfig, type Lead, type LeadStatus } from "@/data/mockData";
+import { salesReps, statusConfig, type Lead, type LeadStatus } from "@/data/mockData";
+import { useLeads } from "@/contexts/LeadsContext";
 import { InlineStatusSelect } from "@/components/crm/InlineStatusSelect";
 import { LeadScoreBadge } from "@/components/crm/LeadScoreBadge";
 import { LeadDetailPanel } from "@/components/crm/LeadDetailPanel";
@@ -20,6 +21,7 @@ import {
 import { relativeDate } from "@/lib/dates";
 
 export default function LeadsPage() {
+  const { leads, updateLeadStatus } = useLeads();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
@@ -29,7 +31,7 @@ export default function LeadsPage() {
   const [sortAsc, setSortAsc] = useState(false);
 
   const filteredLeads = useMemo(() => {
-    let result = allLeads.filter(lead => {
+    let result = leads.filter(lead => {
       const matchesSearch = `${lead.firstName} ${lead.lastName} ${lead.email} ${lead.city}`.toLowerCase().includes(search.toLowerCase());
       const matchesStatus = statusFilter === "all" || lead.status === statusFilter;
       const matchesAssignee = assigneeFilter === "all" || lead.assignedTo === assigneeFilter;
@@ -48,7 +50,7 @@ export default function LeadsPage() {
     });
 
     return result;
-  }, [search, statusFilter, assigneeFilter, sortField, sortAsc]);
+  }, [leads, search, statusFilter, assigneeFilter, sortField, sortAsc]);
 
   const toggleSort = (field: typeof sortField) => {
     if (sortField === field) setSortAsc(!sortAsc);
@@ -79,10 +81,10 @@ export default function LeadsPage() {
   };
 
   const statusCounts = useMemo(() => {
-    const counts: Record<string, number> = { all: allLeads.length };
-    allLeads.forEach(l => { counts[l.status] = (counts[l.status] || 0) + 1; });
+    const counts: Record<string, number> = { all: leads.length };
+    leads.forEach(l => { counts[l.status] = (counts[l.status] || 0) + 1; });
     return counts;
-  }, []);
+  }, [leads]);
 
   return (
     <div className="space-y-4">
@@ -209,7 +211,10 @@ export default function LeadsPage() {
                       </div>
                     </td>
                     <td className="p-3" onClick={e => e.stopPropagation()}>
-                      <InlineStatusSelect status={lead.status} />
+                      <InlineStatusSelect
+                        status={lead.status}
+                        onStatusChange={(newStatus) => updateLeadStatus(lead.id, newStatus)}
+                      />
                     </td>
                     <td className="p-3 hidden lg:table-cell text-xs">{lead.houseModel}</td>
                     <td className="p-3 hidden md:table-cell font-medium">{lead.budget.toLocaleString('fr-FR')} €</td>

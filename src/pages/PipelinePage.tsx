@@ -1,9 +1,9 @@
-import { useState, useMemo } from "react";
-import { leads as allLeads, statusConfig, type Lead, type LeadStatus } from "@/data/mockData";
+import { useState } from "react";
+import { statusConfig, type Lead, type LeadStatus } from "@/data/mockData";
+import { useLeads } from "@/contexts/LeadsContext";
 import { StatusBadge } from "@/components/crm/StatusBadge";
 import { LeadScoreBadge } from "@/components/crm/LeadScoreBadge";
 import { LeadDetailPanel } from "@/components/crm/LeadDetailPanel";
-import { EmptyState } from "@/components/crm/EmptyState";
 import { Euro, Home, Clock, ChevronRight, GripVertical, Phone, Mail } from "lucide-react";
 import { daysSince } from "@/lib/dates";
 import { toast } from "sonner";
@@ -12,13 +12,13 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 const pipelineStages: LeadStatus[] = ['nouveau', 'contacté', 'qualifié', 'proposition', 'négociation', 'gagné', 'perdu'];
 
 export default function PipelinePage() {
+  const { leads, updateLeadStatus } = useLeads();
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [draggedLeadId, setDraggedLeadId] = useState<string | null>(null);
   const [dragOverStage, setDragOverStage] = useState<LeadStatus | null>(null);
-  const [localLeads, setLocalLeads] = useState(allLeads);
 
-  const totalBudget = localLeads.reduce((s, l) => s + l.budget, 0);
-  const activeBudget = localLeads.filter(l => !['gagné', 'perdu'].includes(l.status)).reduce((s, l) => s + l.budget, 0);
+  const totalBudget = leads.reduce((s, l) => s + l.budget, 0);
+  const activeBudget = leads.filter(l => !['gagné', 'perdu'].includes(l.status)).reduce((s, l) => s + l.budget, 0);
 
   const handleDragStart = (e: React.DragEvent, leadId: string) => {
     setDraggedLeadId(leadId);
@@ -34,10 +34,8 @@ export default function PipelinePage() {
   const handleDrop = (e: React.DragEvent, targetStage: LeadStatus) => {
     e.preventDefault();
     if (draggedLeadId) {
-      setLocalLeads(prev => prev.map(l =>
-        l.id === draggedLeadId ? { ...l, status: targetStage } : l
-      ));
-      const lead = localLeads.find(l => l.id === draggedLeadId);
+      const lead = leads.find(l => l.id === draggedLeadId);
+      updateLeadStatus(draggedLeadId, targetStage);
       if (lead) {
         toast.success(`${lead.firstName} ${lead.lastName} → ${statusConfig[targetStage].label}`);
       }
@@ -47,14 +45,12 @@ export default function PipelinePage() {
   };
 
   const advanceLead = (leadId: string) => {
-    const lead = localLeads.find(l => l.id === leadId);
+    const lead = leads.find(l => l.id === leadId);
     if (!lead) return;
     const idx = pipelineStages.indexOf(lead.status);
     if (idx < 5 && lead.status !== 'perdu') {
       const next = pipelineStages[idx + 1];
-      setLocalLeads(prev => prev.map(l =>
-        l.id === leadId ? { ...l, status: next } : l
-      ));
+      updateLeadStatus(leadId, next);
       toast.success(`${lead.firstName} ${lead.lastName} → ${statusConfig[next].label}`);
     }
   };
@@ -72,7 +68,7 @@ export default function PipelinePage() {
 
       <div className="flex gap-3 overflow-x-auto pb-4" style={{ minHeight: 'calc(100vh - 200px)' }}>
         {pipelineStages.map(stage => {
-          const stageLeads = localLeads.filter(l => l.status === stage);
+          const stageLeads = leads.filter(l => l.status === stage);
           const stageBudget = stageLeads.reduce((s, l) => s + l.budget, 0);
           const percentage = totalBudget > 0 ? (stageBudget / totalBudget) * 100 : 0;
           const isDragOver = dragOverStage === stage;
