@@ -6,6 +6,7 @@ import {
   Send, User, Calendar, Home, Euro, ChevronRight, History,
   Copy, ExternalLink, Check
 } from "lucide-react";
+import { TelegramChat } from "./TelegramChat";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
