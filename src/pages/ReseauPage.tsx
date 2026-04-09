@@ -592,6 +592,7 @@ export default function ReseauPage() {
   const [selectedUser, setSelectedUser] = useState<NetworkUser | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterRole, setFilterRole] = useState<string>('all');
+  const [editingUser, setEditingUser] = useState<NetworkUser | null>(null);
 
   const rootUsers = useMemo(() => {
     return users.filter(u => u.parentId === null);
@@ -623,8 +624,42 @@ export default function ReseauPage() {
     setUsers(prev => [...prev, user]);
   };
 
+  const handleUpdateUser = (updated: NetworkUser) => {
+    setUsers(prev => prev.map(u => u.id === updated.id ? updated : u));
+    if (selectedUser?.id === updated.id) setSelectedUser(updated);
+  };
+
+  const handleToggleActive = (user: NetworkUser) => {
+    const updated = { ...user, isActive: !user.isActive };
+    handleUpdateUser(updated);
+    toast.success(`${getUserFullName(user)} ${updated.isActive ? 'activé' : 'désactivé'}`);
+  };
+
+  const handleDeleteUser = (user: NetworkUser) => {
+    const children = users.filter(u => u.parentId === user.id);
+    if (children.length > 0) {
+      toast.error(`Impossible de supprimer ${getUserFullName(user)} — il supervise ${children.length} membre(s)`);
+      return;
+    }
+    setUsers(prev => prev.filter(u => u.id !== user.id));
+    if (selectedUser?.id === user.id) setSelectedUser(null);
+    toast.success(`${getUserFullName(user)} supprimé`);
+  };
+
   return (
     <div className="space-y-6 max-w-[1400px] mx-auto">
+      {/* Edit dialog */}
+      {editingUser && (
+        <EditUserDialog
+          user={editingUser}
+          users={users}
+          zones={zonesList}
+          onSave={handleUpdateUser}
+          open={!!editingUser}
+          onOpenChange={(open) => { if (!open) setEditingUser(null); }}
+        />
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -689,7 +724,14 @@ export default function ReseauPage() {
               </CardHeader>
               <CardContent className="p-4">
                 {selectedUser ? (
-                  <UserDetail user={selectedUser} users={users} zones={zonesList} onClose={() => setSelectedUser(null)} />
+                  <UserDetail
+                    user={selectedUser}
+                    users={users}
+                    zones={zonesList}
+                    onClose={() => setSelectedUser(null)}
+                    onEdit={(u) => setEditingUser(u)}
+                    onToggleActive={handleToggleActive}
+                  />
                 ) : (
                   <div className="text-center py-12 text-muted-foreground">
                     <Users className="w-12 h-12 mx-auto mb-3 opacity-30" />
@@ -802,10 +844,16 @@ export default function ReseauPage() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                <DropdownMenuItem><Edit2 className="w-3.5 h-3.5 mr-2" /> Modifier</DropdownMenuItem>
-                                <DropdownMenuItem><ArrowDownUp className="w-3.5 h-3.5 mr-2" /> Réassigner</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setEditingUser(user)}>
+                                  <Edit2 className="w-3.5 h-3.5 mr-2" /> Modifier
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleToggleActive(user)}>
+                                  {user.isActive ? <><ToggleLeft className="w-3.5 h-3.5 mr-2" /> Désactiver</> : <><ToggleRight className="w-3.5 h-3.5 mr-2" /> Activer</>}
+                                </DropdownMenuItem>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem className="text-destructive"><Trash2 className="w-3.5 h-3.5 mr-2" /> Supprimer</DropdownMenuItem>
+                                <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteUser(user)}>
+                                  <Trash2 className="w-3.5 h-3.5 mr-2" /> Supprimer
+                                </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </td>
