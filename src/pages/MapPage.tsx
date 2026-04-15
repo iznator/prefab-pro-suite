@@ -36,7 +36,7 @@ function createIcon(status: string) {
   });
 }
 
-export default function MapPage() {
+  const { leads } = useLeads();
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
 
   return (

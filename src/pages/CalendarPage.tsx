@@ -14,7 +14,8 @@ interface CalendarEvent {
 }
 
 export default function CalendarPage() {
-  const [currentDate, setCurrentDate] = useState(new Date(2024, 2, 1)); // March 2024 to match mock data
+  const { leads } = useLeads();
+  const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
 
   const year = currentDate.getFullYear();
