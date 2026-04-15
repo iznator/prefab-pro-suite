@@ -1,4 +1,5 @@
-import { leads, salesReps, statusConfig, type LeadStatus } from "@/data/mockData";
+import { useLeads } from "@/contexts/LeadsContext";
+import { salesReps, statusConfig, type LeadStatus } from "@/data/mockData";
 import { StatusBadge } from "@/components/crm/StatusBadge";
 import { LeadScoreBadge } from "@/components/crm/LeadScoreBadge";
 import {
@@ -19,6 +20,7 @@ function getGreeting(): string {
 
 export default function DashboardPage() {
   const navigate = useNavigate();
+  const { leads } = useLeads();
   const totalLeads = leads.length;
   const totalBudget = leads.reduce((sum, l) => sum + l.budget, 0);
   const wonLeads = leads.filter(l => l.status === 'gagné');

@@ -14,7 +14,266 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      lead_messages: {
+        Row: {
+          author: string
+          content: string
+          created_at: string
+          id: string
+          is_internal: boolean
+          lead_id: string
+        }
+        Insert: {
+          author: string
+          content: string
+          created_at?: string
+          id?: string
+          is_internal?: boolean
+          lead_id: string
+        }
+        Update: {
+          author?: string
+          content?: string
+          created_at?: string
+          id?: string
+          is_internal?: boolean
+          lead_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_messages_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_notes: {
+        Row: {
+          author: string
+          content: string
+          created_at: string
+          id: string
+          lead_id: string
+        }
+        Insert: {
+          author: string
+          content: string
+          created_at?: string
+          id?: string
+          lead_id: string
+        }
+        Update: {
+          author?: string
+          content?: string
+          created_at?: string
+          id?: string
+          lead_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_notes_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leads: {
+        Row: {
+          address: string | null
+          assigned_to: string | null
+          budget: number | null
+          city: string | null
+          created_at: string
+          email: string
+          first_name: string
+          house_model: string | null
+          id: string
+          last_contact: string | null
+          last_name: string
+          lat: number | null
+          lng: number | null
+          phone: string | null
+          postal_code: string | null
+          score: number | null
+          source: string | null
+          status: string
+          surface: number | null
+          tags: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          assigned_to?: string | null
+          budget?: number | null
+          city?: string | null
+          created_at?: string
+          email: string
+          first_name: string
+          house_model?: string | null
+          id?: string
+          last_contact?: string | null
+          last_name: string
+          lat?: number | null
+          lng?: number | null
+          phone?: string | null
+          postal_code?: string | null
+          score?: number | null
+          source?: string | null
+          status?: string
+          surface?: number | null
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          assigned_to?: string | null
+          budget?: number | null
+          city?: string | null
+          created_at?: string
+          email?: string
+          first_name?: string
+          house_model?: string | null
+          id?: string
+          last_contact?: string | null
+          last_name?: string
+          lat?: number | null
+          lng?: number | null
+          phone?: string | null
+          postal_code?: string | null
+          score?: number | null
+          source?: string | null
+          status?: string
+          surface?: number | null
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      network_members: {
+        Row: {
+          avatar: string | null
+          created_at: string
+          email: string
+          id: string
+          leads_count: number | null
+          manager_id: string | null
+          name: string
+          phone: string | null
+          role: string
+          status: string
+          updated_at: string
+          zone: string | null
+        }
+        Insert: {
+          avatar?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          leads_count?: number | null
+          manager_id?: string | null
+          name: string
+          phone?: string | null
+          role?: string
+          status?: string
+          updated_at?: string
+          zone?: string | null
+        }
+        Update: {
+          avatar?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          leads_count?: number | null
+          manager_id?: string | null
+          name?: string
+          phone?: string | null
+          role?: string
+          status?: string
+          updated_at?: string
+          zone?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "network_members_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "network_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      network_zones: {
+        Row: {
+          color: string | null
+          created_at: string
+          department: string | null
+          id: string
+          name: string
+          region: string | null
+          responsible_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          department?: string | null
+          id?: string
+          name: string
+          region?: string | null
+          responsible_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          department?: string | null
+          id?: string
+          name?: string
+          region?: string | null
+          responsible_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "network_zones_responsible_id_fkey"
+            columns: ["responsible_id"]
+            isOneToOne: false
+            referencedRelation: "network_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

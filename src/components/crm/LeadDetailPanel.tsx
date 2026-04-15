@@ -1,4 +1,5 @@
-import { Lead, salesReps, statusConfig, type LeadStatus } from "@/data/mockData";
+import { salesReps, statusConfig, type LeadStatus } from "@/data/mockData";
+import { type Lead } from "@/contexts/LeadsContext";
 import { StatusBadge } from "./StatusBadge";
 import { LeadScoreBadge } from "./LeadScoreBadge";
 import {
