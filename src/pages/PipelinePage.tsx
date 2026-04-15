@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { statusConfig, type Lead, type LeadStatus } from "@/data/mockData";
-import { useLeads } from "@/contexts/LeadsContext";
+import { statusConfig, type LeadStatus } from "@/data/mockData";
+import { useLeads, type Lead } from "@/contexts/LeadsContext";
 import { StatusBadge } from "@/components/crm/StatusBadge";
 import { LeadScoreBadge } from "@/components/crm/LeadScoreBadge";
 import { LeadDetailPanel } from "@/components/crm/LeadDetailPanel";
