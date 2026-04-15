@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { leads, statusConfig, type Lead } from "@/data/mockData";
+import { statusConfig } from "@/data/mockData";
+import { useLeads, type Lead } from "@/contexts/LeadsContext";
 import { StatusBadge } from "@/components/crm/StatusBadge";
 import { LeadDetailPanel } from "@/components/crm/LeadDetailPanel";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";

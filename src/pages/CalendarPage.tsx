@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
-import { leads, salesReps, type Lead } from "@/data/mockData";
+import { salesReps } from "@/data/mockData";
+import { useLeads, type Lead } from "@/contexts/LeadsContext";
 import { StatusBadge } from "@/components/crm/StatusBadge";
 import { LeadDetailPanel } from "@/components/crm/LeadDetailPanel";
 import { ChevronLeft, ChevronRight, Clock, User, Phone } from "lucide-react";
