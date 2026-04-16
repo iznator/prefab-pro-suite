@@ -538,46 +538,132 @@ function SwipeableMessage({
   );
 }
 
-// Inline voice message player (Telegram-style)
+// Telegram-style voice message player with waveform + speed control
 function VoiceMessagePlayer({ src, isMe }: { src: string; isMe: boolean }) {
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [speed, setSpeed] = useState(1);
   const audioRef = useRef<HTMLAudioElement>(null);
+
+  // Generate pseudo-waveform bars (deterministic from src hash)
+  const [bars] = useState<number[]>(() => {
+    let hash = 0;
+    for (let i = 0; i < src.length; i++) hash = ((hash << 5) - hash + src.charCodeAt(i)) | 0;
+    const result: number[] = [];
+    for (let i = 0; i < 40; i++) {
+      hash = ((hash * 1103515245 + 12345) & 0x7fffffff);
+      result.push(0.15 + (hash % 100) / 100 * 0.85);
+    }
+    return result;
+  });
 
   const toggle = () => {
     const a = audioRef.current;
     if (!a) return;
-    if (playing) { a.pause(); } else { a.play(); }
+    if (playing) { a.pause(); } else { a.play().catch(() => {}); }
     setPlaying(!playing);
+  };
+
+  const cycleSpeed = () => {
+    const speeds = [1, 1.5, 2, 3];
+    const next = speeds[(speeds.indexOf(speed) + 1) % speeds.length];
+    setSpeed(next);
+    if (audioRef.current) audioRef.current.playbackRate = next;
   };
 
   const handleTimeUpdate = () => {
     const a = audioRef.current;
-    if (!a || !a.duration) return;
+    if (!a || !isFinite(a.duration) || a.duration === 0) return;
     setProgress(a.currentTime / a.duration);
   };
 
   const handleEnded = () => { setPlaying(false); setProgress(0); };
-  const handleLoaded = () => { if (audioRef.current) setDuration(audioRef.current.duration); };
 
-  const fmt = (s: number) => `${Math.floor(s / 60)}:${Math.floor(s % 60).toString().padStart(2, "0")}`;
+  const handleLoaded = () => {
+    const a = audioRef.current;
+    if (a && isFinite(a.duration) && a.duration > 0) {
+      setDuration(a.duration);
+    }
+  };
+
+  const handleBarClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const a = audioRef.current;
+    if (!a || !isFinite(a.duration)) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    a.currentTime = ratio * a.duration;
+    setProgress(ratio);
+  };
+
+  const fmt = (s: number) => {
+    if (!isFinite(s) || isNaN(s) || s <= 0) return "0:00";
+    return `${Math.floor(s / 60)}:${Math.floor(s % 60).toString().padStart(2, "0")}`;
+  };
+
+  const displayTime = playing && isFinite(duration) && duration > 0
+    ? fmt(progress * duration)
+    : fmt(duration);
 
   return (
-    <div className="flex items-center gap-2 py-1 min-w-[180px]">
-      <audio ref={audioRef} src={src} preload="metadata" onTimeUpdate={handleTimeUpdate} onEnded={handleEnded} onLoadedMetadata={handleLoaded} />
-      <button onClick={toggle} className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${
-        isMe ? "bg-[#4CAF50]/20 hover:bg-[#4CAF50]/30" : "bg-primary/10 hover:bg-primary/20"
-      }`}>
-        {playing ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
+    <div className="flex items-center gap-2.5 py-1.5 min-w-[220px] max-w-[320px]">
+      <audio
+        ref={audioRef}
+        src={src}
+        preload="metadata"
+        onTimeUpdate={handleTimeUpdate}
+        onEnded={handleEnded}
+        onLoadedMetadata={handleLoaded}
+        onDurationChange={handleLoaded}
+      />
+
+      {/* Play button - big green circle like Telegram */}
+      <button
+        onClick={toggle}
+        className={`w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-150 active:scale-95 ${
+          isMe
+            ? "bg-[#4CAF50] hover:bg-[#43A047] text-white"
+            : "bg-primary hover:bg-primary/90 text-primary-foreground"
+        }`}
+      >
+        {playing ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
       </button>
-      <div className="flex-1 flex flex-col gap-0.5">
-        <div className="h-1.5 rounded-full bg-foreground/10 overflow-hidden">
-          <div className={`h-full rounded-full transition-all duration-100 ${isMe ? "bg-[#4CAF50]" : "bg-primary"}`} style={{ width: `${progress * 100}%` }} />
+
+      <div className="flex-1 flex flex-col gap-1">
+        {/* Waveform */}
+        <div className="flex items-end gap-[1.5px] h-[26px] cursor-pointer" onClick={handleBarClick}>
+          {bars.map((h, i) => {
+            const barProgress = i / bars.length;
+            const isPlayed = barProgress <= progress;
+            return (
+              <div
+                key={i}
+                className={`w-[3px] rounded-full transition-colors duration-75 ${
+                  isPlayed
+                    ? isMe ? "bg-[#4CAF50]" : "bg-primary"
+                    : isMe ? "bg-[#4CAF50]/30" : "bg-primary/25"
+                }`}
+                style={{ height: `${h * 26}px` }}
+              />
+            );
+          })}
         </div>
-        <span className="text-[10px] opacity-60">{duration > 0 ? fmt(playing ? progress * duration : duration) : "..."}</span>
+
+        {/* Duration + speed */}
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] opacity-60 font-mono">{displayTime}</span>
+          {playing && (
+            <button
+              onClick={cycleSpeed}
+              className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md transition-colors ${
+                isMe ? "bg-[#4CAF50]/20 hover:bg-[#4CAF50]/30" : "bg-primary/10 hover:bg-primary/20"
+              }`}
+            >
+              {speed}x
+            </button>
+          )}
+        </div>
       </div>
-      <Mic className="w-3.5 h-3.5 opacity-40 flex-shrink-0" />
     </div>
   );
 }
