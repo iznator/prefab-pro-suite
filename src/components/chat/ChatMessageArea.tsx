@@ -81,44 +81,62 @@ interface ContextMenuState {
   y: number;
 }
 
-// Swipe-to-reply
+// Swipe-to-reply using trackpad horizontal scroll (no click needed)
 function useSwipeToReply(onReply: () => void) {
-  const startX = useRef(0);
-  const currentX = useRef(0);
   const elRef = useRef<HTMLDivElement>(null);
-  const swiping = useRef(false);
-  const threshold = 60;
+  const accumulatedX = useRef(0);
+  const resetTimer = useRef<ReturnType<typeof setTimeout>>();
+  const triggered = useRef(false);
+  const threshold = 80;
 
-  const onPointerDown = useCallback((e: React.PointerEvent) => {
-    if (e.button !== 0) return;
-    startX.current = e.clientX;
-    currentX.current = e.clientX;
-    swiping.current = true;
-  }, []);
+  useEffect(() => {
+    const el = elRef.current;
+    if (!el) return;
 
-  const onPointerMove = useCallback((e: React.PointerEvent) => {
-    if (!swiping.current || !elRef.current) return;
-    currentX.current = e.clientX;
-    const dx = currentX.current - startX.current;
-    if (dx < 0) {
-      const clamped = Math.max(dx, -100);
-      elRef.current.style.transform = `translateX(${clamped}px)`;
-      elRef.current.style.transition = "none";
-    }
-  }, []);
+    const handleWheel = (e: WheelEvent) => {
+      // Only respond to horizontal scroll (trackpad swipe)
+      if (Math.abs(e.deltaX) < Math.abs(e.deltaY)) return;
+      if (e.deltaX > 0) return; // Only swipe left (deltaX negative = swipe right gesture = content moves left)
 
-  const onPointerUp = useCallback(() => {
-    if (!swiping.current || !elRef.current) return;
-    swiping.current = false;
-    const dx = currentX.current - startX.current;
-    elRef.current.style.transition = "transform 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94)";
-    elRef.current.style.transform = "translateX(0)";
-    if (dx < -threshold) {
-      onReply();
-    }
+      // Prevent page navigation
+      e.preventDefault();
+
+      accumulatedX.current += Math.abs(e.deltaX);
+
+      // Visual feedback
+      const clamped = Math.min(accumulatedX.current, 100);
+      el.style.transform = `translateX(-${clamped}px)`;
+      el.style.transition = "none";
+
+      // Trigger reply
+      if (accumulatedX.current > threshold && !triggered.current) {
+        triggered.current = true;
+        onReply();
+        // Haptic-like visual flash
+        el.style.transform = "translateX(0)";
+        el.style.transition = "transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)";
+      }
+
+      // Reset after scroll stops
+      if (resetTimer.current) clearTimeout(resetTimer.current);
+      resetTimer.current = setTimeout(() => {
+        accumulatedX.current = 0;
+        triggered.current = false;
+        if (el) {
+          el.style.transition = "transform 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94)";
+          el.style.transform = "translateX(0)";
+        }
+      }, 200);
+    };
+
+    el.addEventListener("wheel", handleWheel, { passive: false });
+    return () => {
+      el.removeEventListener("wheel", handleWheel);
+      if (resetTimer.current) clearTimeout(resetTimer.current);
+    };
   }, [onReply]);
 
-  return { elRef, onPointerDown, onPointerMove, onPointerUp };
+  return { elRef };
 }
 
 export const ChatMessageArea = forwardRef<ChatMessageAreaHandle, ChatMessageAreaProps>(
