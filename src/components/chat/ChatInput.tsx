@@ -64,13 +64,14 @@ export function ChatInput({ channelId, replyTo, onClearReply, onSend, members }:
     fetchLeads();
   }, [showLeadPicker, leadQuery]);
 
-  const handleSend = async () => {
+  const handleSend = () => {
     const text = input.trim();
     if (!text) return;
-    await onSend(text, "text", undefined, undefined, undefined, replyTo?.id);
     setInput("");
     onClearReply();
     setShowEmoji(false);
+    // Fire and forget — optimistic update handles UI
+    onSend(text, "text", undefined, undefined, undefined, replyTo?.id);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
