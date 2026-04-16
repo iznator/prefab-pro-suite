@@ -14,6 +14,7 @@ import CalendarPage from "@/pages/CalendarPage";
 import ReportsPage from "@/pages/ReportsPage";
 import ConfigurateurPage from "@/pages/ConfigurateurPage";
 import ReseauPage from "@/pages/ReseauPage";
+import ChatPage from "@/pages/ChatPage";
 import AuthPage from "@/pages/AuthPage";
 import NotFound from "@/pages/NotFound";
 import { Loader2 } from "lucide-react";
@@ -47,6 +48,7 @@ function ProtectedRoutes() {
           <Route path="/rapports" element={<ReportsPage />} />
           <Route path="/configurateur" element={<ConfigurateurPage />} />
           <Route path="/reseau" element={<ReseauPage />} />
+          <Route path="/chat" element={<ChatPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </CRMLayout>
