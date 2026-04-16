@@ -1,6 +1,6 @@
-import { useRef, useEffect, useCallback, useState } from "react";
+import { useRef, useEffect, useCallback, useState, useImperativeHandle, forwardRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Reply, Copy, Pin, Trash2, CheckCheck, FileText, ExternalLink, Hash, Forward, CheckSquare, ChevronDown } from "lucide-react";
+import { Reply, Copy, Pin, Trash2, CheckCheck, FileText, ExternalLink, Hash, Forward, CheckSquare, ChevronDown, ArrowDown } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import type { ChatMessage } from "@/hooks/useChat";
 import { useNavigate } from "react-router-dom";
@@ -19,7 +19,6 @@ const EMOJI_FULL = [
   "👆","🖕","👇","☝️","🫵","👍","👎","✊","👊","🤛","🤜","👏","🙌","🫶","👐","🤲","🤝","🙏","✍️","💅",
   "🤳","💪","🦾","🦿","🦵","🦶","👂","🦻","👃","🧠","🫀","🫁","🦷","🦴","👀","👁️","👅","👄","🫦",
   "🎉","🎊","🎈","🎁","🎄","🎃","🎗️","🎟️","🎫","🏆","🏅","🥇","🥈","🥉","⚽","🏀","🏈","⚾","🥎","🎾",
-  "🏐","🏉","🥏","🎱","🪀","🏓","🏸","🏒","🏑","🥍","🏏","🪃","🥅","⛳","🪁","🏹","🎣","🤿","🥊","🥋",
 ];
 
 const LEAD_TAG_REGEX = /\[lead:([a-f0-9-]+):([^\]]+)\]/g;
@@ -68,13 +67,17 @@ interface ChatMessageAreaProps {
   onDelete: (msgId: string) => void;
 }
 
+export interface ChatMessageAreaHandle {
+  scrollToBottom: () => void;
+}
+
 interface ContextMenuState {
   msgId: string;
   x: number;
   y: number;
 }
 
-// Swipe-to-reply hook per message row
+// Swipe-to-reply
 function useSwipeToReply(onReply: () => void) {
   const startX = useRef(0);
   const currentX = useRef(0);
@@ -83,7 +86,6 @@ function useSwipeToReply(onReply: () => void) {
   const threshold = 60;
 
   const onPointerDown = useCallback((e: React.PointerEvent) => {
-    // Only track horizontal swipes from touch/trackpad (not right-click)
     if (e.button !== 0) return;
     startX.current = e.clientX;
     currentX.current = e.clientX;
@@ -94,7 +96,6 @@ function useSwipeToReply(onReply: () => void) {
     if (!swiping.current || !elRef.current) return;
     currentX.current = e.clientX;
     const dx = currentX.current - startX.current;
-    // Only allow swipe left (negative dx)
     if (dx < 0) {
       const clamped = Math.max(dx, -100);
       elRef.current.style.transform = `translateX(${clamped}px)`;
@@ -116,7 +117,8 @@ function useSwipeToReply(onReply: () => void) {
   return { elRef, onPointerDown, onPointerMove, onPointerUp };
 }
 
-export function ChatMessageArea({ messages, loading, onReply, onReaction, onDelete }: ChatMessageAreaProps) {
+export const ChatMessageArea = forwardRef<ChatMessageAreaHandle, ChatMessageAreaProps>(
+  function ChatMessageArea({ messages, loading, onReply, onReaction, onDelete }, ref) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -124,27 +126,43 @@ export function ChatMessageArea({ messages, loading, onReply, onReaction, onDele
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const [ctxMenu, setCtxMenu] = useState<ContextMenuState | null>(null);
   const [emojiExpanded, setEmojiExpanded] = useState(false);
+  const [showScrollBtn, setShowScrollBtn] = useState(false);
 
-  const isNearBottom = useRef(true);
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = "instant") => {
+    bottomRef.current?.scrollIntoView({ behavior });
+  }, []);
 
-  const checkNearBottom = useCallback(() => {
+  // Expose scrollToBottom to parent
+  useImperativeHandle(ref, () => ({ scrollToBottom: () => scrollToBottom("instant") }), [scrollToBottom]);
+
+  // Track if user is near bottom
+  const handleScroll = useCallback(() => {
     const el = containerRef.current;
     if (!el) return;
-    isNearBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+    setShowScrollBtn(!nearBottom);
   }, []);
 
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-    el.addEventListener("scroll", checkNearBottom, { passive: true });
-    return () => el.removeEventListener("scroll", checkNearBottom);
-  }, [checkNearBottom]);
+    el.addEventListener("scroll", handleScroll, { passive: true });
+    return () => el.removeEventListener("scroll", handleScroll);
+  }, [handleScroll]);
 
+  // Auto-scroll on new messages if near bottom
+  const prevCount = useRef(messages.length);
   useEffect(() => {
-    if (isNearBottom.current) {
-      bottomRef.current?.scrollIntoView({ behavior: "instant" as ScrollBehavior });
+    if (messages.length > prevCount.current && !showScrollBtn) {
+      scrollToBottom("instant");
     }
-  }, [messages.length]);
+    prevCount.current = messages.length;
+  }, [messages.length, showScrollBtn, scrollToBottom]);
+
+  // Initial scroll
+  useEffect(() => {
+    scrollToBottom("instant");
+  }, []);
 
   useEffect(() => {
     if (!ctxMenu) return;
@@ -227,7 +245,7 @@ export function ChatMessageArea({ messages, loading, onReply, onReaction, onDele
   return (
     <div
       ref={containerRef}
-      className="flex-1 overflow-y-auto px-4 py-3 relative"
+      className="flex-1 overflow-y-auto px-4 py-3 relative scroll-smooth"
       style={{ background: "linear-gradient(180deg, hsl(var(--muted) / 0.15) 0%, hsl(var(--muted) / 0.05) 100%)" }}
     >
       {messages.length === 0 && (
@@ -276,7 +294,6 @@ export function ChatMessageArea({ messages, loading, onReply, onReaction, onDele
             style={{ left: ctxMenu.x, top: ctxMenu.y, minWidth: 220 }}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Emoji section */}
             <div className="border-b">
               <div className="flex items-center gap-0.5 px-3 py-2">
                 {EMOJI_QUICK.map(emoji => (
@@ -296,7 +313,6 @@ export function ChatMessageArea({ messages, loading, onReply, onReaction, onDele
                 </button>
               </div>
 
-              {/* Expanded emoji grid */}
               <AnimatePresence>
                 {emojiExpanded && (
                   <motion.div
@@ -306,7 +322,7 @@ export function ChatMessageArea({ messages, loading, onReply, onReaction, onDele
                     transition={{ duration: 0.2, ease: "easeOut" }}
                     className="overflow-hidden"
                   >
-                    <div className="h-[200px] overflow-y-auto px-2 pb-2 scrollbar-thin">
+                    <div className="h-[200px] overflow-y-auto px-2 pb-2">
                       <div className="grid grid-cols-8 gap-0.5">
                         {EMOJI_FULL.map((emoji, idx) => (
                           <button
@@ -324,7 +340,6 @@ export function ChatMessageArea({ messages, loading, onReply, onReaction, onDele
               </AnimatePresence>
             </div>
 
-            {/* Actions */}
             <div className="py-1">
               <CtxMenuItem icon={<Reply className="w-4 h-4" />} label="Répondre" onClick={() => { onReply(ctxMsg); setCtxMenu(null); }} />
               <CtxMenuItem icon={<Copy className="w-4 h-4" />} label="Copier le texte" onClick={() => handleCopy(ctxMsg.content || "")} />
@@ -339,12 +354,28 @@ export function ChatMessageArea({ messages, loading, onReply, onReaction, onDele
         )}
       </AnimatePresence>
 
+      {/* Scroll to bottom FAB */}
+      <AnimatePresence>
+        {showScrollBtn && (
+          <motion.button
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            transition={{ duration: 0.15 }}
+            onClick={() => scrollToBottom("smooth")}
+            className="sticky bottom-4 left-1/2 -translate-x-1/2 w-10 h-10 rounded-full bg-card border shadow-lg flex items-center justify-center hover:bg-muted transition-colors z-30 ml-auto mr-auto"
+          >
+            <ArrowDown className="w-5 h-5 text-muted-foreground" />
+          </motion.button>
+        )}
+      </AnimatePresence>
+
       <div ref={bottomRef} />
     </div>
   );
-}
+});
 
-// Individual message with swipe-to-reply
+// Swipeable message row
 function SwipeableMessage({
   msg, prevMsg, user, navigate, highlightedId,
   onReply, onReaction, onContextMenu, scrollToMessage, groupReactions, getInitials, formatTime,
@@ -377,7 +408,7 @@ function SwipeableMessage({
       className={`${sameSender ? "mt-[3px]" : "mt-3"} relative overflow-hidden`}
       onContextMenu={(e) => onContextMenu(e, msg.id)}
     >
-      {/* Swipe reply indicator (appears behind the message) */}
+      {/* Swipe reply indicator */}
       <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-30 pointer-events-none">
         <Reply className="w-5 h-5 text-primary" />
       </div>
@@ -418,7 +449,6 @@ function SwipeableMessage({
               : `bg-white dark:bg-[#212121] text-foreground shadow-sm ${sameSender ? "rounded-2xl rounded-bl-md" : "rounded-2xl rounded-bl-md"}`
           } ${isHighlighted ? "ring-2 ring-primary/50 scale-[1.01]" : ""} ${isOptimistic ? "opacity-70" : ""}`}
         >
-          {/* Tail */}
           {!sameSender && (
             <div className={`absolute top-0 w-3 h-3 ${
               isMe ? "-right-1.5 bg-[#EFFDDE] dark:bg-[#2B5D3E]" : "-left-1.5 bg-white dark:bg-[#212121]"
@@ -427,7 +457,6 @@ function SwipeableMessage({
             }} />
           )}
 
-          {/* Reply preview */}
           {msg.reply_to && (
             <button
               onClick={() => scrollToMessage((msg.reply_to as any).id || msg.reply_to_id!)}
