@@ -565,7 +565,20 @@ function VoiceMessagePlayer({ src, isMe }: { src: string; isMe: boolean }) {
   const toggle = () => {
     const a = audioRef.current;
     if (!a) return;
-    if (playing) { a.pause(); } else { a.play().catch(() => {}); }
+    if (playing) {
+      a.pause();
+      currentlyPlayingAudio = null;
+      currentlyPlayingSetPlaying = null;
+    } else {
+      // Stop any other playing voice message first
+      if (currentlyPlayingAudio && currentlyPlayingAudio !== a) {
+        currentlyPlayingAudio.pause();
+        currentlyPlayingSetPlaying?.(false);
+      }
+      currentlyPlayingAudio = a;
+      currentlyPlayingSetPlaying = setPlaying;
+      a.play().catch(() => {});
+    }
     setPlaying(!playing);
   };
 
