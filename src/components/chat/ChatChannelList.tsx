@@ -11,9 +11,10 @@ interface ChatChannelListProps {
   activeChannelId: string | null;
   onSelectChannel: (id: string) => void;
   onCreateChannel: () => void;
+  onlineUserIds?: Set<string>;
 }
 
-export function ChatChannelList({ channels, activeChannelId, onSelectChannel, onCreateChannel }: ChatChannelListProps) {
+export function ChatChannelList({ channels, activeChannelId, onSelectChannel, onCreateChannel, onlineUserIds }: ChatChannelListProps) {
   const [search, setSearch] = useState("");
 
   const channelList = channels.filter(c => c.type === "channel");
@@ -38,42 +39,50 @@ export function ChatChannelList({ channels, activeChannelId, onSelectChannel, on
   const renderChannel = (ch: Channel) => {
     const isActive = activeChannelId === ch.id;
     const Icon = ch.type === "channel" ? Hash : MessageCircle;
+    const unread = ch.unread || 0;
 
     return (
       <button
         key={ch.id}
         onClick={() => onSelectChannel(ch.id)}
         className={cn(
-          "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all duration-150 text-left group",
+          "w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm transition-all duration-150 text-left group",
           isActive
             ? "bg-primary text-primary-foreground shadow-sm"
             : "hover:bg-muted text-foreground"
         )}
       >
         <div className={cn(
-          "w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-[11px] font-bold",
+          "w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-[11px] font-bold relative",
           isActive ? "bg-primary-foreground/20" : "bg-primary/10 text-primary"
         )}>
           <Icon className="w-4 h-4" />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between">
-            <span className="font-medium truncate text-[13px]">{ch.name}</span>
+            <span className={cn("truncate text-[13px]", unread > 0 && !isActive ? "font-bold" : "font-medium")}>
+              {ch.name}
+            </span>
             <span className={cn(
               "text-[10px] flex-shrink-0 ml-1",
-              isActive ? "text-primary-foreground/70" : "text-muted-foreground"
+              isActive ? "text-primary-foreground/70" : unread > 0 ? "text-primary font-semibold" : "text-muted-foreground"
             )}>
               {formatLastTime(ch.updated_at)}
             </span>
           </div>
-          {ch.description && (
+          <div className="flex items-center justify-between mt-0.5">
             <p className={cn(
-              "text-[11px] truncate mt-0.5",
+              "text-[11px] truncate flex-1",
               isActive ? "text-primary-foreground/60" : "text-muted-foreground"
             )}>
-              {ch.description}
+              {ch.description || "Aucun message"}
             </p>
-          )}
+            {unread > 0 && !isActive && (
+              <span className="ml-1 w-5 h-5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center flex-shrink-0">
+                {unread > 99 ? "99+" : unread}
+              </span>
+            )}
+          </div>
         </div>
       </button>
     );
@@ -100,7 +109,6 @@ export function ChatChannelList({ channels, activeChannelId, onSelectChannel, on
       </div>
 
       <ScrollArea className="flex-1">
-        {/* Channels */}
         <div className="p-2">
           <p className="px-2 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
             Channels
@@ -113,7 +121,6 @@ export function ChatChannelList({ channels, activeChannelId, onSelectChannel, on
           )}
         </div>
 
-        {/* DMs */}
         <div className="p-2">
           <p className="px-2 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
             Messages directs
