@@ -507,7 +507,7 @@ function SwipeableMessage({
               {msg.content}
             </a>
           )}
-          {msg.type === "text" && msg.content && (
+          {msg.type === "text" && msg.content && !msg.content.startsWith("🎤") && (
             <p className="whitespace-pre-wrap break-words">{renderContentWithLeads(msg.content, isMe, navigate)}</p>
           )}
 
