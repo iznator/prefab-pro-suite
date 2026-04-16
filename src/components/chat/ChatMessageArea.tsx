@@ -628,13 +628,32 @@ function VoiceMessagePlayer({ src, isMe }: { src: string; isMe: boolean }) {
     }
   };
 
-  const handleBarClick = (e: React.MouseEvent<HTMLDivElement>) => {
+  const seekFromEvent = (e: React.MouseEvent<HTMLDivElement>) => {
     const a = audioRef.current;
-    if (!a || !isFinite(a.duration)) return;
+    if (!a || !isFinite(a.duration) || a.duration === 0) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     a.currentTime = ratio * a.duration;
     setProgress(ratio);
+  };
+
+  const handleBarMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    seekFromEvent(e);
+    const bar = e.currentTarget;
+    const onMove = (ev: MouseEvent) => {
+      const a = audioRef.current;
+      if (!a || !isFinite(a.duration) || a.duration === 0) return;
+      const rect = bar.getBoundingClientRect();
+      const ratio = Math.max(0, Math.min(1, (ev.clientX - rect.left) / rect.width));
+      a.currentTime = ratio * a.duration;
+      setProgress(ratio);
+    };
+    const onUp = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
   };
 
   const fmt = (s: number) => {
