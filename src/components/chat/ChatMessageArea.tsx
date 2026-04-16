@@ -614,7 +614,12 @@ function VoiceMessagePlayer({ src, isMe }: { src: string; isMe: boolean }) {
     setProgress(a.currentTime / a.duration);
   };
 
-  const handleEnded = () => { setPlaying(false); setProgress(0); };
+  const handleEnded = () => {
+    setPlaying(false);
+    setProgress(0);
+    currentlyPlayingAudio = null;
+    currentlyPlayingSetPlaying = null;
+  };
 
   const handleLoaded = () => {
     const a = audioRef.current;
@@ -646,7 +651,7 @@ function VoiceMessagePlayer({ src, isMe }: { src: string; isMe: boolean }) {
       <audio
         ref={audioRef}
         src={src}
-        preload="metadata"
+        preload="auto"
         onTimeUpdate={handleTimeUpdate}
         onEnded={handleEnded}
         onLoadedMetadata={handleLoaded}
