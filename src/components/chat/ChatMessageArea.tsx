@@ -1,6 +1,6 @@
 import { useRef, useEffect, useCallback, useState, useImperativeHandle, forwardRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Reply, Copy, Pin, Trash2, CheckCheck, FileText, ExternalLink, Hash, Forward, CheckSquare, ChevronDown, ArrowDown, Pencil } from "lucide-react";
+import { Reply, Copy, Pin, Trash2, CheckCheck, FileText, ExternalLink, Hash, Forward, CheckSquare, ChevronDown, ArrowDown, Pencil, Play, Pause, Mic } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import type { ChatMessage } from "@/hooks/useChat";
 import { useNavigate } from "react-router-dom";
@@ -455,7 +455,7 @@ function SwipeableMessage({
             isMe
               ? `bg-[#EFFDDE] dark:bg-[#2B5D3E] text-[#1a3a2a] dark:text-[#E8F5E0] shadow-sm ${sameSender ? "rounded-2xl rounded-br-md" : "rounded-2xl rounded-br-md"}`
               : `bg-white dark:bg-[#212121] text-foreground shadow-sm ${sameSender ? "rounded-2xl rounded-bl-md" : "rounded-2xl rounded-bl-md"}`
-          } ${isHighlighted ? "ring-2 ring-primary/50 scale-[1.01]" : ""} ${isOptimistic ? "opacity-70" : ""}`}
+          } ${isHighlighted ? "ring-2 ring-primary/50 scale-[1.01]" : ""}`}
         >
           {!sameSender && (
             <div className={`absolute top-0 w-3 h-3 ${
@@ -489,7 +489,10 @@ function SwipeableMessage({
             <img src={msg.file_url} alt={msg.file_name || "image"} loading="lazy"
               className="rounded-lg max-h-52 object-cover mb-1 cursor-pointer hover:brightness-95 transition-all" />
           )}
-          {msg.type === "file" && (
+          {msg.type === "file" && msg.file_type?.startsWith("audio/") && msg.file_url && (
+            <VoiceMessagePlayer src={msg.file_url} isMe={isMe} />
+          )}
+          {msg.type === "file" && !msg.file_type?.startsWith("audio/") && (
             <a href={msg.file_url || "#"} target="_blank" rel="noopener noreferrer"
               className={`flex items-center gap-2 p-2 rounded-lg mb-1 transition-colors ${
                 isMe ? "bg-[#d4f5d4]/60 dark:bg-[#1e4d2e]/60 hover:bg-[#c4e8c4]/80" : "bg-muted hover:bg-muted/80"
@@ -514,7 +517,7 @@ function SwipeableMessage({
             {msg.edited_at && <span className="text-[9px] italic opacity-60">modifié</span>}
             {msg.is_pinned && <Pin className="w-2.5 h-2.5 opacity-60" />}
             <span className="text-[10px]">{formatTime(msg.created_at)}</span>
-            {isMe && <CheckCheck className={`w-3.5 h-3.5 ${isOptimistic ? "opacity-40" : ""}`} />}
+            {isMe && <CheckCheck className="w-3.5 h-3.5" />}
           </div>
 
           {reactions.length > 0 && (
@@ -531,6 +534,50 @@ function SwipeableMessage({
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+// Inline voice message player (Telegram-style)
+function VoiceMessagePlayer({ src, isMe }: { src: string; isMe: boolean }) {
+  const [playing, setPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const audioRef = useRef<HTMLAudioElement>(null);
+
+  const toggle = () => {
+    const a = audioRef.current;
+    if (!a) return;
+    if (playing) { a.pause(); } else { a.play(); }
+    setPlaying(!playing);
+  };
+
+  const handleTimeUpdate = () => {
+    const a = audioRef.current;
+    if (!a || !a.duration) return;
+    setProgress(a.currentTime / a.duration);
+  };
+
+  const handleEnded = () => { setPlaying(false); setProgress(0); };
+  const handleLoaded = () => { if (audioRef.current) setDuration(audioRef.current.duration); };
+
+  const fmt = (s: number) => `${Math.floor(s / 60)}:${Math.floor(s % 60).toString().padStart(2, "0")}`;
+
+  return (
+    <div className="flex items-center gap-2 py-1 min-w-[180px]">
+      <audio ref={audioRef} src={src} preload="metadata" onTimeUpdate={handleTimeUpdate} onEnded={handleEnded} onLoadedMetadata={handleLoaded} />
+      <button onClick={toggle} className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${
+        isMe ? "bg-[#4CAF50]/20 hover:bg-[#4CAF50]/30" : "bg-primary/10 hover:bg-primary/20"
+      }`}>
+        {playing ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
+      </button>
+      <div className="flex-1 flex flex-col gap-0.5">
+        <div className="h-1.5 rounded-full bg-foreground/10 overflow-hidden">
+          <div className={`h-full rounded-full transition-all duration-100 ${isMe ? "bg-[#4CAF50]" : "bg-primary"}`} style={{ width: `${progress * 100}%` }} />
+        </div>
+        <span className="text-[10px] opacity-60">{duration > 0 ? fmt(playing ? progress * duration : duration) : "..."}</span>
+      </div>
+      <Mic className="w-3.5 h-3.5 opacity-40 flex-shrink-0" />
     </div>
   );
 }

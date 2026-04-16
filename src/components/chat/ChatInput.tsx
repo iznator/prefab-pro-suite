@@ -1,11 +1,12 @@
 import { useState, useRef, useEffect } from "react";
-import { Send, Paperclip, Smile, X, Reply, Upload, Hash } from "lucide-react";
+import { Send, Paperclip, Smile, X, Reply, Upload, Hash, Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import type { ChatMessage } from "@/hooks/useChat";
+import { VoiceRecorder } from "./VoiceRecorder";
 
 const EMOJI_LIST = ["😀", "😂", "😍", "🥰", "😎", "🤔", "👍", "👎", "❤️", "🔥", "🎉", "👏", "💪", "🙏", "✅", "⭐", "📌", "📎", "🏠", "💰", "📞", "✉️", "📅", "🔑"];
 
@@ -36,6 +37,7 @@ export function ChatInput({ channelId, replyTo, onClearReply, onSend, members, o
   const [leads, setLeads] = useState<LeadSuggestion[]>([]);
   const [uploading, setUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [isRecordingVoice, setIsRecordingVoice] = useState(false);
   const dragCounter = useRef(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -301,43 +303,75 @@ export function ChatInput({ channelId, replyTo, onClearReply, onSend, members, o
         )}
       </AnimatePresence>
 
-      {/* Input bar */}
-      <div className="border-t bg-card px-4 py-2.5">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowEmoji(!showEmoji)}
-            className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${showEmoji ? "bg-primary/10 text-primary" : "hover:bg-muted text-muted-foreground"}`}
-          >
-            <Smile className="w-5 h-5" />
-          </button>
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="w-8 h-8 rounded-full hover:bg-muted flex items-center justify-center text-muted-foreground transition-colors"
-            disabled={uploading}
-          >
-            <Paperclip className="w-5 h-5" />
-          </button>
-          <input ref={fileInputRef} type="file" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.zip,.rar" className="hidden" onChange={handleFileUpload} />
-          <input
-            ref={inputRef}
-            type="text"
-            value={input}
-            onChange={handleInputChange}
-            onKeyDown={handleKeyDown}
-            placeholder="Écrire un message... (@mention  #lead)"
-            className="flex-1 bg-muted/50 border rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-muted-foreground"
-            disabled={uploading}
+      {/* Voice recorder */}
+      <AnimatePresence>
+        {isRecordingVoice && (
+          <VoiceRecorder
+            onSend={async (blob, duration) => {
+              setIsRecordingVoice(false);
+              if (!user) return;
+              const ext = blob.type.includes("webm") ? "webm" : "mp4";
+              const fileName = `voice-${Date.now()}.${ext}`;
+              const path = `${user.id}/${fileName}`;
+              const { error } = await supabase.storage.from("chat-files").upload(path, blob, { contentType: blob.type });
+              if (error) { toast.error("Erreur envoi vocal"); return; }
+              const { data: urlData } = supabase.storage.from("chat-files").getPublicUrl(path);
+              await onSend(`🎤 Message vocal (${Math.floor(duration / 60)}:${(duration % 60).toString().padStart(2, "0")})`, "file", urlData.publicUrl, fileName, blob.type, replyTo?.id);
+              onClearReply();
+            }}
+            onCancel={() => setIsRecordingVoice(false)}
           />
-          <Button
-            size="icon"
-            onClick={handleSend}
-            disabled={!input.trim() || uploading}
-            className="w-9 h-9 rounded-full bg-primary text-primary-foreground disabled:opacity-40"
-          >
-            <Send className="w-4 h-4" />
-          </Button>
+        )}
+      </AnimatePresence>
+
+      {/* Input bar */}
+      {!isRecordingVoice && (
+        <div className="border-t bg-card px-4 py-2.5">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowEmoji(!showEmoji)}
+              className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${showEmoji ? "bg-primary/10 text-primary" : "hover:bg-muted text-muted-foreground"}`}
+            >
+              <Smile className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="w-8 h-8 rounded-full hover:bg-muted flex items-center justify-center text-muted-foreground transition-colors"
+              disabled={uploading}
+            >
+              <Paperclip className="w-5 h-5" />
+            </button>
+            <input ref={fileInputRef} type="file" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.zip,.rar" className="hidden" onChange={handleFileUpload} />
+            <input
+              ref={inputRef}
+              type="text"
+              value={input}
+              onChange={handleInputChange}
+              onKeyDown={handleKeyDown}
+              placeholder="Écrire un message... (@mention  #lead)"
+              className="flex-1 bg-muted/50 border rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-muted-foreground"
+              disabled={uploading}
+            />
+            {input.trim() ? (
+              <Button
+                size="icon"
+                onClick={handleSend}
+                disabled={uploading}
+                className="w-9 h-9 rounded-full bg-primary text-primary-foreground"
+              >
+                <Send className="w-4 h-4" />
+              </Button>
+            ) : (
+              <button
+                onClick={() => setIsRecordingVoice(true)}
+                className="w-9 h-9 rounded-full hover:bg-primary/10 flex items-center justify-center text-muted-foreground hover:text-primary transition-colors"
+              >
+                <Mic className="w-5 h-5" />
+              </button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
