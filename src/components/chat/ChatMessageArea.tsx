@@ -150,7 +150,7 @@ export function ChatMessageArea({ messages, loading, onReply, onReaction, onDele
                     </a>
                   )}
                   {msg.type === "text" && msg.content && (
-                    <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                    <p className="whitespace-pre-wrap break-words">{renderContentWithLeads(msg.content, isMe, navigate)}</p>
                   )}
 
                   {/* Time */}
