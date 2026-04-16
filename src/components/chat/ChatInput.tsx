@@ -15,6 +15,7 @@ interface ChatInputProps {
   onClearReply: () => void;
   onSend: (content: string, type: "text" | "image" | "file" | "link", fileUrl?: string, fileName?: string, fileType?: string, replyToId?: string) => Promise<void>;
   members?: { user_id: string; profile?: { display_name: string | null } }[];
+  onTyping?: () => void;
 }
 
 interface LeadSuggestion {
