@@ -71,6 +71,8 @@ interface ChatMessageAreaProps {
 
 export interface ChatMessageAreaHandle {
   scrollToBottom: () => void;
+  getScrollPosition: () => number;
+  setScrollPosition: (pos: number) => void;
 }
 
 interface ContextMenuState {
@@ -134,8 +136,11 @@ export const ChatMessageArea = forwardRef<ChatMessageAreaHandle, ChatMessageArea
     bottomRef.current?.scrollIntoView({ behavior });
   }, []);
 
-  // Expose scrollToBottom to parent
-  useImperativeHandle(ref, () => ({ scrollToBottom: () => scrollToBottom("instant") }), [scrollToBottom]);
+  useImperativeHandle(ref, () => ({
+    scrollToBottom: () => scrollToBottom("instant"),
+    getScrollPosition: () => containerRef.current?.scrollTop ?? 0,
+    setScrollPosition: (pos: number) => { if (containerRef.current) containerRef.current.scrollTop = pos; },
+  }), [scrollToBottom]);
 
   // Track if user is near bottom
   const handleScroll = useCallback(() => {
