@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef } from "react";
 import { ChatChannelList } from "@/components/chat/ChatChannelList";
 import { ChatMessageArea, type ChatMessageAreaHandle } from "@/components/chat/ChatMessageArea";
 import { ChatInput } from "@/components/chat/ChatInput";
@@ -15,7 +15,7 @@ import ReactMarkdown from "react-markdown";
 import { Pin } from "lucide-react";
 
 export default function ChatPage() {
-  const { channels, loading: channelsLoading, createChannel } = useChannels();
+  const { channels, loading: channelsLoading, createChannel, refreshChannels } = useChannels();
   const [activeChannelId, setActiveChannelId] = useState<string | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showMedia, setShowMedia] = useState(false);
@@ -27,6 +27,9 @@ export default function ChatPage() {
   const [messageSearch, setMessageSearch] = useState("");
   const messageAreaRef = useRef<ChatMessageAreaHandle>(null);
 
+  // Persist scroll positions per channel
+  const scrollPositions = useRef<Map<string, number>>(new Map());
+
   const { messages, loading: msgsLoading, sendMessage, addReaction, deleteMessage, editMessage, togglePin } = useMessages(activeChannelId);
   const members = useChannelMembers(activeChannelId);
   const { onlineUsers, typingUsers, sendTyping } = useChatPresence(activeChannelId);
@@ -34,6 +37,24 @@ export default function ChatPage() {
 
   const activeChannel = channels.find(c => c.id === activeChannelId) || null;
   const pinnedMessages = messages.filter(m => m.is_pinned);
+
+  const handleSelectChannel = useCallback((id: string) => {
+    // Save current scroll position before switching
+    if (activeChannelId) {
+      const pos = messageAreaRef.current?.getScrollPosition?.();
+      if (pos !== undefined) scrollPositions.current.set(activeChannelId, pos);
+    }
+    setActiveChannelId(id);
+    setMessageSearch("");
+    setShowPinned(false);
+    // Restore scroll position after messages load
+    requestAnimationFrame(() => {
+      const saved = scrollPositions.current.get(id);
+      if (saved !== undefined) {
+        messageAreaRef.current?.setScrollPosition?.(saved);
+      }
+    });
+  }, [activeChannelId]);
 
   const handleSend = useCallback(async (
     content: string, type: "text" | "image" | "file" | "link",
@@ -72,6 +93,54 @@ export default function ChatPage() {
     }
   }, [activeChannelId, messages, activeChannel]);
 
+  // Channel actions
+  const handleDeleteChannel = useCallback(async (id: string) => {
+    if (!confirm("Supprimer ce channel ? Cette action est irréversible.")) return;
+    await supabase.from("chat_messages").delete().eq("channel_id", id);
+    await supabase.from("chat_channel_members").delete().eq("channel_id", id);
+    await supabase.from("chat_channels").delete().eq("id", id);
+    if (activeChannelId === id) setActiveChannelId(null);
+    refreshChannels();
+    toast.success("Channel supprimé");
+  }, [activeChannelId, refreshChannels]);
+
+  const handlePinChannel = useCallback(async (id: string) => {
+    const ch = channels.find(c => c.id === id);
+    if (!ch) return;
+    const newVal = !(ch as any).is_pinned;
+    await supabase.from("chat_channels").update({ is_pinned: newVal } as any).eq("id", id);
+    refreshChannels();
+    toast.success(newVal ? "Channel épinglé" : "Channel désépinglé");
+  }, [channels, refreshChannels]);
+
+  const handleArchiveChannel = useCallback(async (id: string) => {
+    const ch = channels.find(c => c.id === id);
+    if (!ch) return;
+    const newVal = !(ch as any).is_archived;
+    await supabase.from("chat_channels").update({ is_archived: newVal } as any).eq("id", id);
+    if (newVal && activeChannelId === id) setActiveChannelId(null);
+    refreshChannels();
+    toast.success(newVal ? "Channel archivé" : "Channel désarchivé");
+  }, [channels, activeChannelId, refreshChannels]);
+
+  const handleSetAvatar = useCallback(async (id: string) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      const path = `channel-avatars/${id}-${Date.now()}.${file.name.split(".").pop()}`;
+      const { error } = await supabase.storage.from("chat-files").upload(path, file);
+      if (error) { toast.error("Erreur upload"); return; }
+      const { data } = supabase.storage.from("chat-files").getPublicUrl(path);
+      await supabase.from("chat_channels").update({ avatar_url: data.publicUrl } as any).eq("id", id);
+      refreshChannels();
+      toast.success("Avatar mis à jour !");
+    };
+    input.click();
+  }, [refreshChannels]);
+
   const filteredMessages = messageSearch.trim()
     ? messages.filter(m => m.content?.toLowerCase().includes(messageSearch.toLowerCase()))
     : messages;
@@ -81,9 +150,13 @@ export default function ChatPage() {
       <ChatChannelList
         channels={channels}
         activeChannelId={activeChannelId}
-        onSelectChannel={(id) => { setActiveChannelId(id); setMessageSearch(""); setShowPinned(false); }}
+        onSelectChannel={handleSelectChannel}
         onCreateChannel={() => setShowCreateDialog(true)}
         onlineUserIds={globalOnline}
+        onDeleteChannel={handleDeleteChannel}
+        onPinChannel={handlePinChannel}
+        onArchiveChannel={handleArchiveChannel}
+        onSetAvatar={handleSetAvatar}
       />
 
       <div className="flex-1 flex flex-col min-w-0">
@@ -114,7 +187,6 @@ export default function ChatPage() {
               onTogglePin={togglePin}
             />
 
-            {/* Typing indicator */}
             {typingUsers.length > 0 && (
               <div className="px-4 py-1 border-t bg-muted/30">
                 <p className="text-[11px] text-muted-foreground animate-pulse">
@@ -147,7 +219,6 @@ export default function ChatPage() {
         )}
       </div>
 
-      {/* Pinned messages panel */}
       {showPinned && activeChannelId && (
         <div className="w-72 border-l bg-card flex flex-col h-full">
           <div className="p-3 border-b flex items-center justify-between">
