@@ -206,6 +206,26 @@ export function useMessages(channelId: string | null) {
   const sendMessage = async (content: string, type: "text" | "image" | "file" | "link" = "text", fileUrl?: string, fileName?: string, fileType?: string, replyToId?: string) => {
     if (!user || !channelId) return;
 
+    // Optimistic insert — message appears instantly
+    const optimisticId = `opt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const optimisticMsg: ChatMessage = {
+      id: optimisticId,
+      channel_id: channelId,
+      user_id: user.id,
+      content,
+      type,
+      file_url: fileUrl || null,
+      file_name: fileName || null,
+      file_type: fileType || null,
+      reply_to_id: replyToId || null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      profile: null,
+      reactions: [],
+      reply_to: replyToId ? messages.find(m => m.id === replyToId) || null : null,
+    };
+    setMessages(prev => [...prev, optimisticMsg]);
+
     const { error } = await supabase.from("chat_messages").insert({
       channel_id: channelId,
       user_id: user.id,
@@ -218,12 +238,14 @@ export function useMessages(channelId: string | null) {
     });
 
     if (error) {
+      // Rollback optimistic insert
+      setMessages(prev => prev.filter(m => m.id !== optimisticId));
       toast.error("Erreur lors de l'envoi");
       console.error(error);
     }
 
-    // Update channel updated_at
-    await supabase.from("chat_channels").update({ updated_at: new Date().toISOString() }).eq("id", channelId);
+    // Update channel updated_at (fire and forget)
+    supabase.from("chat_channels").update({ updated_at: new Date().toISOString() }).eq("id", channelId);
   };
 
   const addReaction = async (messageId: string, emoji: string) => {
