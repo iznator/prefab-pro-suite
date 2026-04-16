@@ -46,6 +46,35 @@ export type Database = {
           },
         ]
       }
+      chat_channel_reads: {
+        Row: {
+          channel_id: string
+          id: string
+          last_read_at: string
+          user_id: string
+        }
+        Insert: {
+          channel_id: string
+          id?: string
+          last_read_at?: string
+          user_id: string
+        }
+        Update: {
+          channel_id?: string
+          id?: string
+          last_read_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_channel_reads_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "chat_channels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_channels: {
         Row: {
           created_at: string
@@ -142,10 +171,12 @@ export type Database = {
           channel_id: string
           content: string | null
           created_at: string
+          edited_at: string | null
           file_name: string | null
           file_type: string | null
           file_url: string | null
           id: string
+          is_pinned: boolean
           reply_to_id: string | null
           type: string
           updated_at: string
@@ -155,10 +186,12 @@ export type Database = {
           channel_id: string
           content?: string | null
           created_at?: string
+          edited_at?: string | null
           file_name?: string | null
           file_type?: string | null
           file_url?: string | null
           id?: string
+          is_pinned?: boolean
           reply_to_id?: string | null
           type?: string
           updated_at?: string
@@ -168,10 +201,12 @@ export type Database = {
           channel_id?: string
           content?: string | null
           created_at?: string
+          edited_at?: string | null
           file_name?: string | null
           file_type?: string | null
           file_url?: string | null
           id?: string
+          is_pinned?: boolean
           reply_to_id?: string | null
           type?: string
           updated_at?: string
