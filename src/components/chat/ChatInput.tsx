@@ -95,6 +95,7 @@ export function ChatInput({ channelId, replyTo, onClearReply, onSend, members, o
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setInput(val);
+    onTyping?.();
 
     // Track mention query
     const lastAt = val.lastIndexOf("@");

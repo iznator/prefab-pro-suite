@@ -511,6 +511,8 @@ function SwipeableMessage({
           <div className={`flex items-center gap-1 justify-end mt-0.5 ${
             isMe ? "text-[#6aae6a] dark:text-[#81C784]/70" : "text-muted-foreground/60"
           }`}>
+            {msg.edited_at && <span className="text-[9px] italic opacity-60">modifié</span>}
+            {msg.is_pinned && <Pin className="w-2.5 h-2.5 opacity-60" />}
             <span className="text-[10px]">{formatTime(msg.created_at)}</span>
             {isMe && <CheckCheck className={`w-3.5 h-3.5 ${isOptimistic ? "opacity-40" : ""}`} />}
           </div>
