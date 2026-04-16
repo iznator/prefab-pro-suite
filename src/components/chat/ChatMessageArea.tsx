@@ -1,6 +1,6 @@
 import { useRef, useEffect, useCallback, useState, useImperativeHandle, forwardRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Reply, Copy, Pin, Trash2, CheckCheck, FileText, ExternalLink, Hash, Forward, CheckSquare, ChevronDown, ArrowDown } from "lucide-react";
+import { Reply, Copy, Pin, Trash2, CheckCheck, FileText, ExternalLink, Hash, Forward, CheckSquare, ChevronDown, ArrowDown, Pencil } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import type { ChatMessage } from "@/hooks/useChat";
 import { useNavigate } from "react-router-dom";
@@ -345,12 +345,18 @@ export const ChatMessageArea = forwardRef<ChatMessageAreaHandle, ChatMessageArea
             <div className="py-1">
               <CtxMenuItem icon={<Reply className="w-4 h-4" />} label="Répondre" onClick={() => { onReply(ctxMsg); setCtxMenu(null); }} />
               <CtxMenuItem icon={<Copy className="w-4 h-4" />} label="Copier le texte" onClick={() => handleCopy(ctxMsg.content || "")} />
-              <CtxMenuItem icon={<Pin className="w-4 h-4" />} label="Épingler" onClick={() => { toast.info("Bientôt disponible"); setCtxMenu(null); }} />
+              <CtxMenuItem icon={<Pin className="w-4 h-4" />} label={ctxMsg.is_pinned ? "Désépingler" : "Épingler"} onClick={() => { onTogglePin?.(ctxMenu.msgId); setCtxMenu(null); }} />
               <CtxMenuItem icon={<Forward className="w-4 h-4" />} label="Transférer" onClick={() => { toast.info("Bientôt disponible"); setCtxMenu(null); }} />
+              {ctxMsg.user_id === user?.id && (
+                <CtxMenuItem icon={<Pencil className="w-4 h-4" />} label="Éditer" onClick={() => {
+                  const newContent = prompt("Modifier le message :", ctxMsg.content || "");
+                  if (newContent && newContent !== ctxMsg.content) { onEdit?.(ctxMenu.msgId, newContent); }
+                  setCtxMenu(null);
+                }} />
+              )}
               {ctxMsg.user_id === user?.id && (
                 <CtxMenuItem icon={<Trash2 className="w-4 h-4 text-destructive" />} label="Supprimer" className="text-destructive" onClick={() => { onDelete(ctxMenu.msgId); setCtxMenu(null); }} />
               )}
-              <CtxMenuItem icon={<CheckSquare className="w-4 h-4" />} label="Sélectionner" onClick={() => { toast.info("Bientôt disponible"); setCtxMenu(null); }} />
             </div>
           </motion.div>
         )}
