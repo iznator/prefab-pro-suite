@@ -65,6 +65,8 @@ interface ChatMessageAreaProps {
   onReply: (msg: ChatMessage) => void;
   onReaction: (msgId: string, emoji: string) => void;
   onDelete: (msgId: string) => void;
+  onEdit?: (msgId: string, newContent: string) => void;
+  onTogglePin?: (msgId: string) => void;
 }
 
 export interface ChatMessageAreaHandle {
