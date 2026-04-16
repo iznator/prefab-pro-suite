@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Send, Paperclip, Smile, X, Reply, Upload } from "lucide-react";
+import { Send, Paperclip, Smile, X, Reply, Upload, Hash } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,11 +17,22 @@ interface ChatInputProps {
   members?: { user_id: string; profile?: { display_name: string | null } }[];
 }
 
+interface LeadSuggestion {
+  id: string;
+  first_name: string;
+  last_name: string;
+  city: string | null;
+  status: string;
+}
+
 export function ChatInput({ channelId, replyTo, onClearReply, onSend, members }: ChatInputProps) {
   const [input, setInput] = useState("");
   const [showEmoji, setShowEmoji] = useState(false);
   const [showMentions, setShowMentions] = useState(false);
   const [mentionQuery, setMentionQuery] = useState("");
+  const [showLeadPicker, setShowLeadPicker] = useState(false);
+  const [leadQuery, setLeadQuery] = useState("");
+  const [leads, setLeads] = useState<LeadSuggestion[]>([]);
   const [uploading, setUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const dragCounter = useRef(0);
@@ -32,6 +43,26 @@ export function ChatInput({ channelId, replyTo, onClearReply, onSend, members }:
   useEffect(() => {
     inputRef.current?.focus();
   }, [replyTo, channelId]);
+
+  // Fetch leads for autocomplete
+  useEffect(() => {
+    if (!showLeadPicker) return;
+    const fetchLeads = async () => {
+      let query = supabase
+        .from("leads")
+        .select("id, first_name, last_name, city, status")
+        .order("last_name", { ascending: true })
+        .limit(20);
+
+      if (leadQuery.trim()) {
+        query = query.or(`first_name.ilike.%${leadQuery}%,last_name.ilike.%${leadQuery}%,city.ilike.%${leadQuery}%`);
+      }
+
+      const { data } = await query;
+      setLeads(data || []);
+    };
+    fetchLeads();
+  }, [showLeadPicker, leadQuery]);
 
   const handleSend = async () => {
     const text = input.trim();
@@ -48,10 +79,14 @@ export function ChatInput({ channelId, replyTo, onClearReply, onSend, members }:
       handleSend();
     }
 
-    // Check for @ mentions
     if (e.key === "@") {
       setShowMentions(true);
       setMentionQuery("");
+    }
+
+    if (e.key === "#") {
+      setShowLeadPicker(true);
+      setLeadQuery("");
     }
   };
 
@@ -66,6 +101,14 @@ export function ChatInput({ channelId, replyTo, onClearReply, onSend, members }:
     } else {
       setShowMentions(false);
     }
+
+    // Track lead query
+    const lastHash = val.lastIndexOf("#");
+    if (lastHash >= 0 && showLeadPicker) {
+      setLeadQuery(val.slice(lastHash + 1));
+    } else {
+      setShowLeadPicker(false);
+    }
   };
 
   const insertMention = (name: string) => {
@@ -73,6 +116,15 @@ export function ChatInput({ channelId, replyTo, onClearReply, onSend, members }:
     const before = input.slice(0, lastAt);
     setInput(`${before}@${name} `);
     setShowMentions(false);
+    inputRef.current?.focus();
+  };
+
+  const insertLead = (lead: LeadSuggestion) => {
+    const lastHash = input.lastIndexOf("#");
+    const before = input.slice(0, lastHash);
+    // Format: [lead:UUID:FirstName LastName]
+    setInput(`${before}[lead:${lead.id}:${lead.first_name} ${lead.last_name}] `);
+    setShowLeadPicker(false);
     inputRef.current?.focus();
   };
 
@@ -127,6 +179,15 @@ export function ChatInput({ channelId, replyTo, onClearReply, onSend, members }:
   const filteredMembers = (members || []).filter(m =>
     m.profile?.display_name?.toLowerCase().includes(mentionQuery.toLowerCase())
   );
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "qualifié": return "bg-green-500/20 text-green-700 dark:text-green-400";
+      case "contacté": return "bg-blue-500/20 text-blue-700 dark:text-blue-400";
+      case "nouveau": return "bg-amber-500/20 text-amber-700 dark:text-amber-400";
+      default: return "bg-muted text-muted-foreground";
+    }
+  };
 
   return (
     <div
@@ -211,6 +272,32 @@ export function ChatInput({ channelId, replyTo, onClearReply, onSend, members }:
         )}
       </AnimatePresence>
 
+      {/* Lead suggestions */}
+      <AnimatePresence>
+        {showLeadPicker && leads.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }}
+            className="absolute bottom-full left-4 right-4 mb-1 bg-card border rounded-lg shadow-lg p-1 z-20 max-h-52 overflow-y-auto"
+          >
+            <p className="px-3 py-1 text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Taguer un lead</p>
+            {leads.map(lead => (
+              <button
+                key={lead.id}
+                onClick={() => insertLead(lead)}
+                className="w-full text-left px-3 py-2 hover:bg-muted rounded-md transition-colors flex items-center gap-2"
+              >
+                <Hash className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                <span className="text-sm font-medium">{lead.first_name} {lead.last_name}</span>
+                {lead.city && <span className="text-[11px] text-muted-foreground">• {lead.city}</span>}
+                <span className={`ml-auto text-[10px] px-1.5 py-0.5 rounded-full ${getStatusColor(lead.status)}`}>
+                  {lead.status}
+                </span>
+              </button>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Input bar */}
       <div className="border-t bg-card px-4 py-2.5">
         <div className="flex items-center gap-2">
@@ -234,7 +321,7 @@ export function ChatInput({ channelId, replyTo, onClearReply, onSend, members }:
             value={input}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
-            placeholder="Écrire un message... (@mention)"
+            placeholder="Écrire un message... (@mention  #lead)"
             className="flex-1 bg-muted/50 border rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-muted-foreground"
             disabled={uploading}
           />
