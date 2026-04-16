@@ -26,7 +26,7 @@ interface LeadSuggestion {
   status: string;
 }
 
-export function ChatInput({ channelId, replyTo, onClearReply, onSend, members }: ChatInputProps) {
+export function ChatInput({ channelId, replyTo, onClearReply, onSend, members, onTyping }: ChatInputProps) {
   const [input, setInput] = useState("");
   const [showEmoji, setShowEmoji] = useState(false);
   const [showMentions, setShowMentions] = useState(false);
