@@ -1,11 +1,12 @@
 import { useRef, useEffect, useCallback, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Reply, Smile, Trash2, CheckCheck, FileText, ExternalLink, Hash } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { Reply, Copy, Pin, Trash2, CheckCheck, FileText, ExternalLink, Hash, Forward, CheckSquare, Smile } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import type { ChatMessage } from "@/hooks/useChat";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
-const EMOJI_QUICK = ["👍", "❤️", "😂", "😮", "🔥", "👏", "🎉", "✅"];
+const EMOJI_QUICK = ["👍", "❤️", "🤣", "🔥", "💯", "🤯"];
 
 const LEAD_TAG_REGEX = /\[lead:([a-f0-9-]+):([^\]]+)\]/g;
 
@@ -53,23 +54,54 @@ interface ChatMessageAreaProps {
   onDelete: (msgId: string) => void;
 }
 
+interface ContextMenuState {
+  msgId: string;
+  x: number;
+  y: number;
+}
+
 export function ChatMessageArea({ messages, loading, onReply, onReaction, onDelete }: ChatMessageAreaProps) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const bottomRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [showReactions, setShowReactions] = useState<string | null>(null);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  const [ctxMenu, setCtxMenu] = useState<ContextMenuState | null>(null);
 
-  const scrollToBottom = useCallback(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  // Auto-scroll — instant for new messages, smooth for navigating
+  const isNearBottom = useRef(true);
+
+  const checkNearBottom = useCallback(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    isNearBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
   }, []);
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages, scrollToBottom]);
+    const el = containerRef.current;
+    if (!el) return;
+    el.addEventListener("scroll", checkNearBottom, { passive: true });
+    return () => el.removeEventListener("scroll", checkNearBottom);
+  }, [checkNearBottom]);
 
-  // Click on a reply → scroll to and highlight the original message
+  useEffect(() => {
+    if (isNearBottom.current) {
+      bottomRef.current?.scrollIntoView({ behavior: "instant" as ScrollBehavior });
+    }
+  }, [messages.length]);
+
+  // Close context menu on scroll or outside click
+  useEffect(() => {
+    if (!ctxMenu) return;
+    const close = () => setCtxMenu(null);
+    window.addEventListener("click", close);
+    containerRef.current?.addEventListener("scroll", close);
+    return () => {
+      window.removeEventListener("click", close);
+      containerRef.current?.removeEventListener("scroll", close);
+    };
+  }, [ctxMenu]);
+
   const scrollToMessage = useCallback((messageId: string) => {
     const el = document.getElementById(`msg-${messageId}`);
     if (!el) return;
@@ -112,6 +144,24 @@ export function ChatMessageArea({ messages, loading, onReply, onReaction, onDele
     return Array.from(map.values());
   };
 
+  const handleContextMenu = (e: React.MouseEvent, msgId: string) => {
+    e.preventDefault();
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    // Clamp menu position within viewport
+    const x = Math.min(e.clientX - rect.left, rect.width - 220);
+    const y = Math.min(e.clientY - rect.top, rect.height - 320);
+    setCtxMenu({ msgId, x, y });
+  };
+
+  const handleCopy = (content: string) => {
+    navigator.clipboard.writeText(content);
+    toast.success("Texte copié");
+    setCtxMenu(null);
+  };
+
+  const ctxMsg = ctxMenu ? messages.find(m => m.id === ctxMenu.msgId) : null;
+
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center">
@@ -123,7 +173,7 @@ export function ChatMessageArea({ messages, loading, onReply, onReaction, onDele
   return (
     <div
       ref={containerRef}
-      className="flex-1 overflow-y-auto px-4 py-3"
+      className="flex-1 overflow-y-auto px-4 py-3 relative"
       style={{ background: "linear-gradient(180deg, hsl(var(--muted) / 0.15) 0%, hsl(var(--muted) / 0.05) 100%)" }}
     >
       {messages.length === 0 && (
@@ -148,15 +198,14 @@ export function ChatMessageArea({ messages, loading, onReply, onReaction, onDele
             const displayName = msg.profile?.display_name || "Utilisateur";
             const reactions = groupReactions(msg.reactions || []);
             const isHighlighted = highlightedId === msg.id;
+            const isOptimistic = msg.id.startsWith("opt-");
 
             return (
-              <motion.div
+              <div
                 key={msg.id}
                 id={`msg-${msg.id}`}
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.15, ease: "easeOut" }}
                 className={`flex ${isMe ? "justify-end" : "justify-start"} ${sameSender ? "mt-[3px]" : "mt-3"} group/msg relative`}
+                onContextMenu={(e) => handleContextMenu(e, msg.id)}
               >
                 {/* Avatar for others */}
                 {!isMe && !sameSender && (
@@ -165,6 +214,17 @@ export function ChatMessageArea({ messages, loading, onReply, onReaction, onDele
                   </div>
                 )}
                 {!isMe && sameSender && <div className="w-8 mr-2 flex-shrink-0" />}
+
+                {/* Discrete hover reply icon — Telegram style */}
+                <button
+                  onClick={() => onReply(msg)}
+                  className={`self-center opacity-0 group-hover/msg:opacity-60 hover:!opacity-100 transition-opacity duration-100 p-1 rounded-full ${
+                    isMe ? "order-first mr-1" : "order-last ml-1"
+                  }`}
+                  title="Répondre"
+                >
+                  <Reply className="w-4 h-4 text-muted-foreground" />
+                </button>
 
                 {/* Message bubble */}
                 <div
@@ -176,9 +236,9 @@ export function ChatMessageArea({ messages, loading, onReply, onReaction, onDele
                       : `bg-white dark:bg-[#212121] text-foreground shadow-sm ${
                           sameSender ? "rounded-2xl rounded-bl-md" : "rounded-2xl rounded-bl-md"
                         }`
-                  } ${isHighlighted ? "ring-2 ring-primary/50 bg-primary/5 scale-[1.02]" : ""}`}
+                  } ${isHighlighted ? "ring-2 ring-primary/50 scale-[1.01]" : ""} ${isOptimistic ? "opacity-70" : ""}`}
                 >
-                  {/* Telegram-style tail for first message in group */}
+                  {/* Tail */}
                   {!sameSender && (
                     <div className={`absolute top-0 w-3 h-3 ${
                       isMe
@@ -191,7 +251,7 @@ export function ChatMessageArea({ messages, loading, onReply, onReaction, onDele
                     }} />
                   )}
 
-                  {/* Reply preview — clickable */}
+                  {/* Reply preview */}
                   {msg.reply_to && (
                     <button
                       onClick={() => scrollToMessage((msg.reply_to as any).id || msg.reply_to_id!)}
@@ -218,6 +278,7 @@ export function ChatMessageArea({ messages, loading, onReply, onReaction, onDele
                     <img
                       src={msg.file_url}
                       alt={msg.file_name || "image"}
+                      loading="lazy"
                       className="rounded-lg max-h-52 object-cover mb-1 cursor-pointer hover:brightness-95 transition-all"
                     />
                   )}
@@ -244,12 +305,12 @@ export function ChatMessageArea({ messages, loading, onReply, onReaction, onDele
                     <p className="whitespace-pre-wrap break-words">{renderContentWithLeads(msg.content, isMe, navigate)}</p>
                   )}
 
-                  {/* Time + check marks */}
+                  {/* Time + check */}
                   <div className={`flex items-center gap-1 justify-end mt-0.5 ${
                     isMe ? "text-[#6aae6a] dark:text-[#81C784]/70" : "text-muted-foreground/60"
                   }`}>
                     <span className="text-[10px]">{formatTime(msg.created_at)}</span>
-                    {isMe && <CheckCheck className="w-3.5 h-3.5" />}
+                    {isMe && <CheckCheck className={`w-3.5 h-3.5 ${isOptimistic ? "opacity-40" : ""}`} />}
                   </div>
 
                   {/* Reactions */}
@@ -259,7 +320,7 @@ export function ChatMessageArea({ messages, loading, onReply, onReaction, onDele
                         <button
                           key={r.emoji}
                           onClick={() => onReaction(msg.id, r.emoji)}
-                          className={`px-2 py-0.5 rounded-full text-[12px] border transition-all duration-200 hover:scale-110 active:scale-95 ${
+                          className={`px-2 py-0.5 rounded-full text-[12px] border transition-all duration-150 hover:scale-110 active:scale-95 ${
                             r.reacted
                               ? "bg-primary/10 border-primary/30 shadow-sm"
                               : "bg-background/80 border-transparent hover:border-border"
@@ -270,65 +331,66 @@ export function ChatMessageArea({ messages, loading, onReply, onReaction, onDele
                       ))}
                     </div>
                   )}
-
-                  {/* Hover actions — appear smoothly */}
-                  <div className={`absolute top-1/2 -translate-y-1/2 ${
-                    isMe ? "-left-[88px]" : "-right-[88px]"
-                  } opacity-0 group-hover/msg:opacity-100 transition-opacity duration-150 flex items-center gap-0.5 bg-background/95 backdrop-blur-sm border rounded-xl shadow-md p-1 z-10`}>
-                    <button
-                      onClick={() => onReply(msg)}
-                      className="w-7 h-7 rounded-lg hover:bg-muted flex items-center justify-center transition-colors"
-                      title="Répondre"
-                    >
-                      <Reply className="w-3.5 h-3.5 text-muted-foreground" />
-                    </button>
-                    <button
-                      onClick={() => setShowReactions(showReactions === msg.id ? null : msg.id)}
-                      className="w-7 h-7 rounded-lg hover:bg-muted flex items-center justify-center transition-colors"
-                      title="Réaction"
-                    >
-                      <Smile className="w-3.5 h-3.5 text-muted-foreground" />
-                    </button>
-                    {isMe && (
-                      <button
-                        onClick={() => onDelete(msg.id)}
-                        className="w-7 h-7 rounded-lg hover:bg-destructive/10 flex items-center justify-center transition-colors"
-                        title="Supprimer"
-                      >
-                        <Trash2 className="w-3.5 h-3.5 text-destructive" />
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Reaction picker */}
-                  <AnimatePresence>
-                    {showReactions === msg.id && (
-                      <motion.div
-                        initial={{ opacity: 0, scale: 0.85, y: 4 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.85, y: 4 }}
-                        transition={{ duration: 0.15, ease: "easeOut" }}
-                        className={`absolute ${isMe ? "right-0" : "left-0"} -top-11 bg-background/95 backdrop-blur-sm border rounded-2xl shadow-lg p-1.5 flex gap-0.5 z-20`}
-                      >
-                        {EMOJI_QUICK.map(emoji => (
-                          <button
-                            key={emoji}
-                            onClick={() => { onReaction(msg.id, emoji); setShowReactions(null); }}
-                            className="w-8 h-8 rounded-lg hover:bg-muted flex items-center justify-center text-base transition-all duration-150 hover:scale-125 active:scale-90"
-                          >
-                            {emoji}
-                          </button>
-                        ))}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
                 </div>
-              </motion.div>
+              </div>
             );
           })}
         </div>
       ))}
+
+      {/* Telegram-style right-click context menu */}
+      <AnimatePresence>
+        {ctxMenu && ctxMsg && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.92 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.92 }}
+            transition={{ duration: 0.12, ease: "easeOut" }}
+            className="absolute z-50 bg-card border rounded-2xl shadow-xl overflow-hidden"
+            style={{ left: ctxMenu.x, top: ctxMenu.y, minWidth: 200 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Quick emoji row */}
+            <div className="flex items-center gap-0.5 px-3 py-2.5 border-b">
+              {EMOJI_QUICK.map(emoji => (
+                <button
+                  key={emoji}
+                  onClick={() => { onReaction(ctxMenu.msgId, emoji); setCtxMenu(null); }}
+                  className="w-9 h-9 rounded-lg hover:bg-muted flex items-center justify-center text-xl transition-all duration-100 hover:scale-125 active:scale-90"
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+
+            {/* Action list */}
+            <div className="py-1">
+              <CtxMenuItem icon={<Reply className="w-4 h-4" />} label="Répondre" onClick={() => { onReply(ctxMsg); setCtxMenu(null); }} />
+              <CtxMenuItem icon={<Copy className="w-4 h-4" />} label="Copier le texte" onClick={() => handleCopy(ctxMsg.content || "")} />
+              <CtxMenuItem icon={<Pin className="w-4 h-4" />} label="Épingler" onClick={() => { toast.info("Bientôt disponible"); setCtxMenu(null); }} />
+              <CtxMenuItem icon={<Forward className="w-4 h-4" />} label="Transférer" onClick={() => { toast.info("Bientôt disponible"); setCtxMenu(null); }} />
+              {ctxMsg.user_id === user?.id && (
+                <CtxMenuItem icon={<Trash2 className="w-4 h-4 text-destructive" />} label="Supprimer" className="text-destructive" onClick={() => { onDelete(ctxMenu.msgId); setCtxMenu(null); }} />
+              )}
+              <CtxMenuItem icon={<CheckSquare className="w-4 h-4" />} label="Sélectionner" onClick={() => { toast.info("Bientôt disponible"); setCtxMenu(null); }} />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div ref={bottomRef} />
     </div>
+  );
+}
+
+function CtxMenuItem({ icon, label, onClick, className = "" }: { icon: React.ReactNode; label: string; onClick: () => void; className?: string }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-muted transition-colors ${className}`}
+    >
+      {icon}
+      {label}
+    </button>
   );
 }
