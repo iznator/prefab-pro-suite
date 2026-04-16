@@ -77,28 +77,37 @@ export type Database = {
       }
       chat_channels: {
         Row: {
+          avatar_url: string | null
           created_at: string
           created_by: string
           description: string | null
           id: string
+          is_archived: boolean
+          is_pinned: boolean
           name: string
           type: string
           updated_at: string
         }
         Insert: {
+          avatar_url?: string | null
           created_at?: string
           created_by: string
           description?: string | null
           id?: string
+          is_archived?: boolean
+          is_pinned?: boolean
           name: string
           type?: string
           updated_at?: string
         }
         Update: {
+          avatar_url?: string | null
           created_at?: string
           created_by?: string
           description?: string | null
           id?: string
+          is_archived?: boolean
+          is_pinned?: boolean
           name?: string
           type?: string
           updated_at?: string
