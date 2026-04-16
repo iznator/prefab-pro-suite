@@ -1,6 +1,6 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { ChatChannelList } from "@/components/chat/ChatChannelList";
-import { ChatMessageArea } from "@/components/chat/ChatMessageArea";
+import { ChatMessageArea, type ChatMessageAreaHandle } from "@/components/chat/ChatMessageArea";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { ChatHeader } from "@/components/chat/ChatHeader";
 import { ChatMediaPanel } from "@/components/chat/ChatMediaPanel";
@@ -21,11 +21,25 @@ export default function ChatPage() {
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
   const [recapLoading, setRecapLoading] = useState(false);
   const [recapContent, setRecapContent] = useState<string | null>(null);
+  const [messageSearch, setMessageSearch] = useState("");
+  const messageAreaRef = useRef<ChatMessageAreaHandle>(null);
 
   const { messages, loading: msgsLoading, sendMessage, addReaction, deleteMessage } = useMessages(activeChannelId);
   const members = useChannelMembers(activeChannelId);
 
   const activeChannel = channels.find(c => c.id === activeChannelId) || null;
+
+  // Wrap sendMessage to scroll to bottom after sending
+  const handleSend = useCallback(async (
+    content: string, type: "text" | "image" | "file" | "link",
+    fileUrl?: string, fileName?: string, fileType?: string, replyToId?: string
+  ) => {
+    await sendMessage(content, type, fileUrl, fileName, fileType, replyToId);
+    // Force scroll to bottom immediately after optimistic insert
+    requestAnimationFrame(() => {
+      messageAreaRef.current?.scrollToBottom();
+    });
+  }, [sendMessage]);
 
   const handleRecap = useCallback(async () => {
     if (!activeChannelId || messages.length === 0) {
@@ -56,17 +70,20 @@ export default function ChatPage() {
     }
   }, [activeChannelId, messages, activeChannel]);
 
+  // Filter messages by search
+  const filteredMessages = messageSearch.trim()
+    ? messages.filter(m => m.content?.toLowerCase().includes(messageSearch.toLowerCase()))
+    : messages;
+
   return (
     <div className="flex h-[calc(100vh-8rem)] -m-4 md:-m-6 rounded-xl overflow-hidden border bg-background">
-      {/* Channel list */}
       <ChatChannelList
         channels={channels}
         activeChannelId={activeChannelId}
-        onSelectChannel={setActiveChannelId}
+        onSelectChannel={(id) => { setActiveChannelId(id); setMessageSearch(""); }}
         onCreateChannel={() => setShowCreateDialog(true)}
       />
 
-      {/* Main chat area */}
       <div className="flex-1 flex flex-col min-w-0">
         <ChatHeader
           channel={activeChannel}
@@ -75,12 +92,15 @@ export default function ChatPage() {
           onToggleMembers={() => { setShowMembers(!showMembers); setShowMedia(false); }}
           onRecap={handleRecap}
           recapLoading={recapLoading}
+          searchQuery={messageSearch}
+          onSearchChange={setMessageSearch}
         />
 
         {activeChannelId ? (
           <>
             <ChatMessageArea
-              messages={messages}
+              ref={messageAreaRef}
+              messages={filteredMessages}
               loading={msgsLoading}
               onReply={setReplyTo}
               onReaction={addReaction}
@@ -90,7 +110,7 @@ export default function ChatPage() {
               channelId={activeChannelId}
               replyTo={replyTo}
               onClearReply={() => setReplyTo(null)}
-              onSend={sendMessage}
+              onSend={handleSend}
               members={members}
             />
           </>
@@ -104,7 +124,6 @@ export default function ChatPage() {
         )}
       </div>
 
-      {/* Side panels */}
       {showMedia && activeChannelId && (
         <ChatMediaPanel messages={messages} onClose={() => setShowMedia(false)} />
       )}
@@ -112,14 +131,12 @@ export default function ChatPage() {
         <ChatMembersPanel members={members} onClose={() => setShowMembers(false)} />
       )}
 
-      {/* Create channel dialog */}
       <CreateChannelDialog
         open={showCreateDialog}
         onOpenChange={setShowCreateDialog}
         onCreate={createChannel}
       />
 
-      {/* Recap dialog */}
       <Dialog open={!!recapContent} onOpenChange={() => setRecapContent(null)}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
