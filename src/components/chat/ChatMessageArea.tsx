@@ -1,12 +1,52 @@
 import { useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Reply, Smile, Trash2, CheckCheck, Check, FileText, Image as ImageIcon, ExternalLink } from "lucide-react";
+import { Reply, Smile, Trash2, CheckCheck, Check, FileText, Image as ImageIcon, ExternalLink, Hash } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@/contexts/AuthContext";
 import type { ChatMessage } from "@/hooks/useChat";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const EMOJI_QUICK = ["👍", "❤️", "😂", "😮", "🔥", "👏", "🎉", "✅"];
+
+const LEAD_TAG_REGEX = /\[lead:([a-f0-9-]+):([^\]]+)\]/g;
+
+function renderContentWithLeads(content: string, isMe: boolean, navigate: (path: string) => void) {
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  const regex = new RegExp(LEAD_TAG_REGEX.source, "g");
+
+  while ((match = regex.exec(content)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(content.slice(lastIndex, match.index));
+    }
+    const leadId = match[1];
+    const leadName = match[2];
+    parts.push(
+      <button
+        key={`${leadId}-${match.index}`}
+        onClick={(e) => { e.stopPropagation(); navigate(`/leads?lead=${leadId}`); }}
+        className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[12px] font-medium transition-colors cursor-pointer ${
+          isMe
+            ? "bg-primary-foreground/20 hover:bg-primary-foreground/30 text-primary-foreground"
+            : "bg-primary/10 hover:bg-primary/20 text-primary"
+        }`}
+      >
+        <Hash className="w-3 h-3" />
+        {leadName}
+      </button>
+    );
+    lastIndex = regex.lastIndex;
+  }
+
+  if (lastIndex < content.length) {
+    parts.push(content.slice(lastIndex));
+  }
+
+  return parts.length > 0 ? parts : content;
+}
+
 
 interface ChatMessageAreaProps {
   messages: ChatMessage[];
@@ -18,6 +58,7 @@ interface ChatMessageAreaProps {
 
 export function ChatMessageArea({ messages, loading, onReply, onReaction, onDelete }: ChatMessageAreaProps) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const bottomRef = useRef<HTMLDivElement>(null);
   const [showReactions, setShowReactions] = useState<string | null>(null);
 
@@ -148,7 +189,7 @@ export function ChatMessageArea({ messages, loading, onReply, onReaction, onDele
                     </a>
                   )}
                   {msg.type === "text" && msg.content && (
-                    <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                    <p className="whitespace-pre-wrap break-words">{renderContentWithLeads(msg.content, isMe, navigate)}</p>
                   )}
 
                   {/* Time */}
