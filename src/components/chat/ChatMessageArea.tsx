@@ -538,6 +538,50 @@ function SwipeableMessage({
   );
 }
 
+// Inline voice message player (Telegram-style)
+function VoiceMessagePlayer({ src, isMe }: { src: string; isMe: boolean }) {
+  const [playing, setPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const audioRef = useRef<HTMLAudioElement>(null);
+
+  const toggle = () => {
+    const a = audioRef.current;
+    if (!a) return;
+    if (playing) { a.pause(); } else { a.play(); }
+    setPlaying(!playing);
+  };
+
+  const handleTimeUpdate = () => {
+    const a = audioRef.current;
+    if (!a || !a.duration) return;
+    setProgress(a.currentTime / a.duration);
+  };
+
+  const handleEnded = () => { setPlaying(false); setProgress(0); };
+  const handleLoaded = () => { if (audioRef.current) setDuration(audioRef.current.duration); };
+
+  const fmt = (s: number) => `${Math.floor(s / 60)}:${Math.floor(s % 60).toString().padStart(2, "0")}`;
+
+  return (
+    <div className="flex items-center gap-2 py-1 min-w-[180px]">
+      <audio ref={audioRef} src={src} preload="metadata" onTimeUpdate={handleTimeUpdate} onEnded={handleEnded} onLoadedMetadata={handleLoaded} />
+      <button onClick={toggle} className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${
+        isMe ? "bg-[#4CAF50]/20 hover:bg-[#4CAF50]/30" : "bg-primary/10 hover:bg-primary/20"
+      }`}>
+        {playing ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
+      </button>
+      <div className="flex-1 flex flex-col gap-0.5">
+        <div className="h-1.5 rounded-full bg-foreground/10 overflow-hidden">
+          <div className={`h-full rounded-full transition-all duration-100 ${isMe ? "bg-[#4CAF50]" : "bg-primary"}`} style={{ width: `${progress * 100}%` }} />
+        </div>
+        <span className="text-[10px] opacity-60">{duration > 0 ? fmt(playing ? progress * duration : duration) : "..."}</span>
+      </div>
+      <Mic className="w-3.5 h-3.5 opacity-40 flex-shrink-0" />
+    </div>
+  );
+}
+
 function CtxMenuItem({ icon, label, onClick, className = "" }: { icon: React.ReactNode; label: string; onClick: () => void; className?: string }) {
   return (
     <button onClick={onClick}
