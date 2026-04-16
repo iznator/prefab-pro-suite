@@ -120,7 +120,7 @@ function useSwipeToReply(onReply: () => void) {
 }
 
 export const ChatMessageArea = forwardRef<ChatMessageAreaHandle, ChatMessageAreaProps>(
-  function ChatMessageArea({ messages, loading, onReply, onReaction, onDelete }, ref) {
+  function ChatMessageArea({ messages, loading, onReply, onReaction, onDelete, onEdit, onTogglePin }, ref) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const bottomRef = useRef<HTMLDivElement>(null);
