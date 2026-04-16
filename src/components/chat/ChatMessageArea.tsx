@@ -1,6 +1,6 @@
 import { useRef, useEffect, useCallback, useState, useImperativeHandle, forwardRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Reply, Copy, Pin, Trash2, CheckCheck, FileText, ExternalLink, Hash, Forward, CheckSquare, ChevronDown, ArrowDown, Pencil } from "lucide-react";
+import { Reply, Copy, Pin, Trash2, CheckCheck, FileText, ExternalLink, Hash, Forward, CheckSquare, ChevronDown, ArrowDown, Pencil, Play, Pause, Mic } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import type { ChatMessage } from "@/hooks/useChat";
 import { useNavigate } from "react-router-dom";
