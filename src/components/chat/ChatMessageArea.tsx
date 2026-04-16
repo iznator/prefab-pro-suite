@@ -691,7 +691,7 @@ function VoiceMessagePlayer({ src, isMe }: { src: string; isMe: boolean }) {
 
       <div className="flex-1 flex flex-col gap-1">
         {/* Waveform */}
-        <div className="flex items-end gap-[1.5px] h-[26px] cursor-pointer" onClick={handleBarClick}>
+        <div className="flex items-end gap-[1.5px] h-[26px] cursor-pointer" onMouseDown={handleBarMouseDown}>
           {bars.map((h, i) => {
             const barProgress = i / bars.length;
             const isPlayed = barProgress <= progress;
