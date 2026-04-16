@@ -1,6 +1,6 @@
 import { useRef, useEffect, useCallback, useState, useImperativeHandle, forwardRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Reply, Copy, Pin, Trash2, CheckCheck, FileText, ExternalLink, Hash, Forward, CheckSquare, ChevronDown, ArrowDown } from "lucide-react";
+import { Reply, Copy, Pin, Trash2, CheckCheck, FileText, ExternalLink, Hash, Forward, CheckSquare, ChevronDown, ArrowDown, Pencil } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import type { ChatMessage } from "@/hooks/useChat";
 import { useNavigate } from "react-router-dom";
@@ -65,6 +65,8 @@ interface ChatMessageAreaProps {
   onReply: (msg: ChatMessage) => void;
   onReaction: (msgId: string, emoji: string) => void;
   onDelete: (msgId: string) => void;
+  onEdit?: (msgId: string, newContent: string) => void;
+  onTogglePin?: (msgId: string) => void;
 }
 
 export interface ChatMessageAreaHandle {
@@ -118,7 +120,7 @@ function useSwipeToReply(onReply: () => void) {
 }
 
 export const ChatMessageArea = forwardRef<ChatMessageAreaHandle, ChatMessageAreaProps>(
-  function ChatMessageArea({ messages, loading, onReply, onReaction, onDelete }, ref) {
+  function ChatMessageArea({ messages, loading, onReply, onReaction, onDelete, onEdit, onTogglePin }, ref) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -343,12 +345,18 @@ export const ChatMessageArea = forwardRef<ChatMessageAreaHandle, ChatMessageArea
             <div className="py-1">
               <CtxMenuItem icon={<Reply className="w-4 h-4" />} label="Répondre" onClick={() => { onReply(ctxMsg); setCtxMenu(null); }} />
               <CtxMenuItem icon={<Copy className="w-4 h-4" />} label="Copier le texte" onClick={() => handleCopy(ctxMsg.content || "")} />
-              <CtxMenuItem icon={<Pin className="w-4 h-4" />} label="Épingler" onClick={() => { toast.info("Bientôt disponible"); setCtxMenu(null); }} />
+              <CtxMenuItem icon={<Pin className="w-4 h-4" />} label={ctxMsg.is_pinned ? "Désépingler" : "Épingler"} onClick={() => { onTogglePin?.(ctxMenu.msgId); setCtxMenu(null); }} />
               <CtxMenuItem icon={<Forward className="w-4 h-4" />} label="Transférer" onClick={() => { toast.info("Bientôt disponible"); setCtxMenu(null); }} />
+              {ctxMsg.user_id === user?.id && (
+                <CtxMenuItem icon={<Pencil className="w-4 h-4" />} label="Éditer" onClick={() => {
+                  const newContent = prompt("Modifier le message :", ctxMsg.content || "");
+                  if (newContent && newContent !== ctxMsg.content) { onEdit?.(ctxMenu.msgId, newContent); }
+                  setCtxMenu(null);
+                }} />
+              )}
               {ctxMsg.user_id === user?.id && (
                 <CtxMenuItem icon={<Trash2 className="w-4 h-4 text-destructive" />} label="Supprimer" className="text-destructive" onClick={() => { onDelete(ctxMenu.msgId); setCtxMenu(null); }} />
               )}
-              <CtxMenuItem icon={<CheckSquare className="w-4 h-4" />} label="Sélectionner" onClick={() => { toast.info("Bientôt disponible"); setCtxMenu(null); }} />
             </div>
           </motion.div>
         )}
@@ -503,6 +511,8 @@ function SwipeableMessage({
           <div className={`flex items-center gap-1 justify-end mt-0.5 ${
             isMe ? "text-[#6aae6a] dark:text-[#81C784]/70" : "text-muted-foreground/60"
           }`}>
+            {msg.edited_at && <span className="text-[9px] italic opacity-60">modifié</span>}
+            {msg.is_pinned && <Pin className="w-2.5 h-2.5 opacity-60" />}
             <span className="text-[10px]">{formatTime(msg.created_at)}</span>
             {isMe && <CheckCheck className={`w-3.5 h-3.5 ${isOptimistic ? "opacity-40" : ""}`} />}
           </div>

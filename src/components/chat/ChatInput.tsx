@@ -15,6 +15,7 @@ interface ChatInputProps {
   onClearReply: () => void;
   onSend: (content: string, type: "text" | "image" | "file" | "link", fileUrl?: string, fileName?: string, fileType?: string, replyToId?: string) => Promise<void>;
   members?: { user_id: string; profile?: { display_name: string | null } }[];
+  onTyping?: () => void;
 }
 
 interface LeadSuggestion {
@@ -25,7 +26,7 @@ interface LeadSuggestion {
   status: string;
 }
 
-export function ChatInput({ channelId, replyTo, onClearReply, onSend, members }: ChatInputProps) {
+export function ChatInput({ channelId, replyTo, onClearReply, onSend, members, onTyping }: ChatInputProps) {
   const [input, setInput] = useState("");
   const [showEmoji, setShowEmoji] = useState(false);
   const [showMentions, setShowMentions] = useState(false);
@@ -94,6 +95,7 @@ export function ChatInput({ channelId, replyTo, onClearReply, onSend, members }:
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setInput(val);
+    onTyping?.();
 
     // Track mention query
     const lastAt = val.lastIndexOf("@");

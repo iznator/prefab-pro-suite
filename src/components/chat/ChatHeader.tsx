@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Hash, MessageCircle, Image, Users, Sparkles, Search, X } from "lucide-react";
+import { Hash, MessageCircle, Image, Users, Sparkles, Search, X, Pin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { Channel } from "@/hooks/useChat";
@@ -7,15 +7,18 @@ import type { Channel } from "@/hooks/useChat";
 interface ChatHeaderProps {
   channel: Channel | null;
   memberCount: number;
+  onlineCount?: number;
   onToggleMedia: () => void;
   onToggleMembers: () => void;
+  onTogglePinned?: () => void;
+  pinnedCount?: number;
   onRecap: () => void;
   recapLoading: boolean;
   searchQuery?: string;
   onSearchChange?: (q: string) => void;
 }
 
-export function ChatHeader({ channel, memberCount, onToggleMedia, onToggleMembers, onRecap, recapLoading, searchQuery = "", onSearchChange }: ChatHeaderProps) {
+export function ChatHeader({ channel, memberCount, onlineCount = 0, onToggleMedia, onToggleMembers, onTogglePinned, pinnedCount = 0, onRecap, recapLoading, searchQuery = "", onSearchChange }: ChatHeaderProps) {
   const [showSearch, setShowSearch] = useState(false);
 
   if (!channel) {
@@ -35,12 +38,13 @@ export function ChatHeader({ channel, memberCount, onToggleMedia, onToggleMember
         }
         <div className="min-w-0">
           <h3 className="text-sm font-semibold truncate">{channel.name}</h3>
-          {channel.description && !showSearch && (
-            <p className="text-[10px] text-muted-foreground truncate">{channel.description}</p>
+          {!showSearch && (
+            <p className="text-[10px] text-muted-foreground truncate">
+              {memberCount} membres{onlineCount > 0 && <span className="text-green-500 ml-1">• {onlineCount} en ligne</span>}
+            </p>
           )}
         </div>
 
-        {/* Inline search */}
         {showSearch && (
           <div className="flex-1 flex items-center gap-1 ml-2">
             <Input
@@ -58,11 +62,19 @@ export function ChatHeader({ channel, memberCount, onToggleMedia, onToggleMember
         )}
       </div>
 
-      <div className="flex items-center gap-1 flex-shrink-0">
+      <div className="flex items-center gap-0.5 flex-shrink-0">
         <Button variant="ghost" size="icon" className="w-8 h-8" onClick={() => setShowSearch(!showSearch)} title="Rechercher">
           <Search className="w-4 h-4 text-muted-foreground" />
         </Button>
-        <Button variant="ghost" size="sm" onClick={onRecap} disabled={recapLoading} className="gap-1.5 text-xs h-8">
+        {pinnedCount > 0 && (
+          <Button variant="ghost" size="icon" className="w-8 h-8 relative" onClick={onTogglePinned} title="Épinglés">
+            <Pin className="w-4 h-4 text-muted-foreground" />
+            <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-primary text-[9px] text-primary-foreground flex items-center justify-center font-bold">
+              {pinnedCount}
+            </span>
+          </Button>
+        )}
+        <Button variant="ghost" size="sm" onClick={onRecap} disabled={recapLoading} className="gap-1 text-xs h-8">
           <Sparkles className={`w-3.5 h-3.5 ${recapLoading ? "animate-spin" : ""}`} />
           Récap
         </Button>
@@ -72,7 +84,6 @@ export function ChatHeader({ channel, memberCount, onToggleMedia, onToggleMember
         <Button variant="ghost" size="icon" className="w-8 h-8" onClick={onToggleMembers} title="Membres">
           <Users className="w-4 h-4 text-muted-foreground" />
         </Button>
-        <span className="text-[10px] text-muted-foreground ml-1">{memberCount}</span>
       </div>
     </div>
   );
