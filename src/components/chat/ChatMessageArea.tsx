@@ -7,6 +7,8 @@ import type { ChatMessage } from "@/hooks/useChat";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+const EMOJI_QUICK = ["👍", "❤️", "😂", "😮", "🔥", "👏", "🎉", "✅"];
+
 const LEAD_TAG_REGEX = /\[lead:([a-f0-9-]+):([^\]]+)\]/g;
 
 function renderContentWithLeads(content: string, isMe: boolean, navigate: (path: string) => void) {
