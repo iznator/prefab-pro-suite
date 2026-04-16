@@ -71,6 +71,8 @@ interface ChatMessageAreaProps {
 
 export interface ChatMessageAreaHandle {
   scrollToBottom: () => void;
+  getScrollPosition: () => number;
+  setScrollPosition: (pos: number) => void;
 }
 
 interface ContextMenuState {
