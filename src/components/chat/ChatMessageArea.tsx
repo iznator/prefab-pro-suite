@@ -81,44 +81,62 @@ interface ContextMenuState {
   y: number;
 }
 
-// Swipe-to-reply
+// Swipe-to-reply using trackpad horizontal scroll (no click needed)
 function useSwipeToReply(onReply: () => void) {
-  const startX = useRef(0);
-  const currentX = useRef(0);
   const elRef = useRef<HTMLDivElement>(null);
-  const swiping = useRef(false);
-  const threshold = 60;
+  const accumulatedX = useRef(0);
+  const resetTimer = useRef<ReturnType<typeof setTimeout>>();
+  const triggered = useRef(false);
+  const threshold = 80;
 
-  const onPointerDown = useCallback((e: React.PointerEvent) => {
-    if (e.button !== 0) return;
-    startX.current = e.clientX;
-    currentX.current = e.clientX;
-    swiping.current = true;
-  }, []);
+  useEffect(() => {
+    const el = elRef.current;
+    if (!el) return;
 
-  const onPointerMove = useCallback((e: React.PointerEvent) => {
-    if (!swiping.current || !elRef.current) return;
-    currentX.current = e.clientX;
-    const dx = currentX.current - startX.current;
-    if (dx < 0) {
-      const clamped = Math.max(dx, -100);
-      elRef.current.style.transform = `translateX(${clamped}px)`;
-      elRef.current.style.transition = "none";
-    }
-  }, []);
+    const handleWheel = (e: WheelEvent) => {
+      // Only respond to horizontal scroll (trackpad swipe)
+      if (Math.abs(e.deltaX) < Math.abs(e.deltaY)) return;
+      if (e.deltaX > 0) return; // Only swipe left (deltaX negative = swipe right gesture = content moves left)
 
-  const onPointerUp = useCallback(() => {
-    if (!swiping.current || !elRef.current) return;
-    swiping.current = false;
-    const dx = currentX.current - startX.current;
-    elRef.current.style.transition = "transform 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94)";
-    elRef.current.style.transform = "translateX(0)";
-    if (dx < -threshold) {
-      onReply();
-    }
+      // Prevent page navigation
+      e.preventDefault();
+
+      accumulatedX.current += Math.abs(e.deltaX);
+
+      // Visual feedback
+      const clamped = Math.min(accumulatedX.current, 100);
+      el.style.transform = `translateX(-${clamped}px)`;
+      el.style.transition = "none";
+
+      // Trigger reply
+      if (accumulatedX.current > threshold && !triggered.current) {
+        triggered.current = true;
+        onReply();
+        // Haptic-like visual flash
+        el.style.transform = "translateX(0)";
+        el.style.transition = "transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)";
+      }
+
+      // Reset after scroll stops
+      if (resetTimer.current) clearTimeout(resetTimer.current);
+      resetTimer.current = setTimeout(() => {
+        accumulatedX.current = 0;
+        triggered.current = false;
+        if (el) {
+          el.style.transition = "transform 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94)";
+          el.style.transform = "translateX(0)";
+        }
+      }, 200);
+    };
+
+    el.addEventListener("wheel", handleWheel, { passive: false });
+    return () => {
+      el.removeEventListener("wheel", handleWheel);
+      if (resetTimer.current) clearTimeout(resetTimer.current);
+    };
   }, [onReply]);
 
-  return { elRef, onPointerDown, onPointerMove, onPointerUp };
+  return { elRef };
 }
 
 export const ChatMessageArea = forwardRef<ChatMessageAreaHandle, ChatMessageAreaProps>(
@@ -428,10 +446,6 @@ function SwipeableMessage({
 
       <div
         ref={swipe.elRef}
-        onPointerDown={swipe.onPointerDown}
-        onPointerMove={swipe.onPointerMove}
-        onPointerUp={swipe.onPointerUp}
-        onPointerCancel={swipe.onPointerUp}
         className={`flex ${isMe ? "justify-end" : "justify-start"} group/msg touch-pan-y`}
         style={{ willChange: "transform" }}
       >
@@ -600,7 +614,12 @@ function VoiceMessagePlayer({ src, isMe }: { src: string; isMe: boolean }) {
     setProgress(a.currentTime / a.duration);
   };
 
-  const handleEnded = () => { setPlaying(false); setProgress(0); };
+  const handleEnded = () => {
+    setPlaying(false);
+    setProgress(0);
+    currentlyPlayingAudio = null;
+    currentlyPlayingSetPlaying = null;
+  };
 
   const handleLoaded = () => {
     const a = audioRef.current;
@@ -609,13 +628,32 @@ function VoiceMessagePlayer({ src, isMe }: { src: string; isMe: boolean }) {
     }
   };
 
-  const handleBarClick = (e: React.MouseEvent<HTMLDivElement>) => {
+  const seekFromEvent = (e: React.MouseEvent<HTMLDivElement>) => {
     const a = audioRef.current;
-    if (!a || !isFinite(a.duration)) return;
+    if (!a || !isFinite(a.duration) || a.duration === 0) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     a.currentTime = ratio * a.duration;
     setProgress(ratio);
+  };
+
+  const handleBarMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    seekFromEvent(e);
+    const bar = e.currentTarget;
+    const onMove = (ev: MouseEvent) => {
+      const a = audioRef.current;
+      if (!a || !isFinite(a.duration) || a.duration === 0) return;
+      const rect = bar.getBoundingClientRect();
+      const ratio = Math.max(0, Math.min(1, (ev.clientX - rect.left) / rect.width));
+      a.currentTime = ratio * a.duration;
+      setProgress(ratio);
+    };
+    const onUp = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
   };
 
   const fmt = (s: number) => {
@@ -632,7 +670,7 @@ function VoiceMessagePlayer({ src, isMe }: { src: string; isMe: boolean }) {
       <audio
         ref={audioRef}
         src={src}
-        preload="metadata"
+        preload="auto"
         onTimeUpdate={handleTimeUpdate}
         onEnded={handleEnded}
         onLoadedMetadata={handleLoaded}
@@ -653,7 +691,7 @@ function VoiceMessagePlayer({ src, isMe }: { src: string; isMe: boolean }) {
 
       <div className="flex-1 flex flex-col gap-1">
         {/* Waveform */}
-        <div className="flex items-end gap-[1.5px] h-[26px] cursor-pointer" onClick={handleBarClick}>
+        <div className="flex items-end gap-[1.5px] h-[26px] cursor-pointer" onMouseDown={handleBarMouseDown}>
           {bars.map((h, i) => {
             const barProgress = i / bars.length;
             const isPlayed = barProgress <= progress;
