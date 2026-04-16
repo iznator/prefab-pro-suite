@@ -98,7 +98,7 @@ function useSwipeToReply(onReply: () => void) {
     const handleWheel = (e: WheelEvent) => {
       // Only respond to horizontal scroll (trackpad swipe)
       if (Math.abs(e.deltaX) < Math.abs(e.deltaY)) return;
-      if (e.deltaX > 0) return; // Only swipe left (deltaX negative = swipe right gesture = content moves left)
+      if (e.deltaX < 0) return; // swipe vers la gauche => deltaX positif sur trackpad Mac
 
       // Prevent page navigation
       e.preventDefault();
