@@ -1,10 +1,11 @@
 import { useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Reply, Smile, Trash2, CheckCheck, Check, FileText, Image as ImageIcon, ExternalLink } from "lucide-react";
+import { Reply, Smile, Trash2, CheckCheck, Check, FileText, Image as ImageIcon, ExternalLink, Hash } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@/contexts/AuthContext";
 import type { ChatMessage } from "@/hooks/useChat";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const EMOJI_QUICK = ["👍", "❤️", "😂", "😮", "🔥", "👏", "🎉", "✅"];
 
