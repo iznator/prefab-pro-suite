@@ -538,6 +538,10 @@ function SwipeableMessage({
   );
 }
 
+// Global ref to stop any currently playing voice message
+let currentlyPlayingAudio: HTMLAudioElement | null = null;
+let currentlyPlayingSetPlaying: ((v: boolean) => void) | null = null;
+
 // Telegram-style voice message player with waveform + speed control
 function VoiceMessagePlayer({ src, isMe }: { src: string; isMe: boolean }) {
   const [playing, setPlaying] = useState(false);
