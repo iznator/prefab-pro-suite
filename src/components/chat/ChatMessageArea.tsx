@@ -446,10 +446,6 @@ function SwipeableMessage({
 
       <div
         ref={swipe.elRef}
-        onPointerDown={swipe.onPointerDown}
-        onPointerMove={swipe.onPointerMove}
-        onPointerUp={swipe.onPointerUp}
-        onPointerCancel={swipe.onPointerUp}
         className={`flex ${isMe ? "justify-end" : "justify-start"} group/msg touch-pan-y`}
         style={{ willChange: "transform" }}
       >
