@@ -19,6 +19,7 @@ interface ChatMessageAreaProps {
 
 export function ChatMessageArea({ messages, loading, onReply, onReaction, onDelete }: ChatMessageAreaProps) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const bottomRef = useRef<HTMLDivElement>(null);
   const [showReactions, setShowReactions] = useState<string | null>(null);
 
