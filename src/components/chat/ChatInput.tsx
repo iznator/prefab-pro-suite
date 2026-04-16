@@ -1,11 +1,12 @@
 import { useState, useRef, useEffect } from "react";
-import { Send, Paperclip, Smile, X, Reply, Upload, Hash } from "lucide-react";
+import { Send, Paperclip, Smile, X, Reply, Upload, Hash, Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import type { ChatMessage } from "@/hooks/useChat";
+import { VoiceRecorder } from "./VoiceRecorder";
 
 const EMOJI_LIST = ["😀", "😂", "😍", "🥰", "😎", "🤔", "👍", "👎", "❤️", "🔥", "🎉", "👏", "💪", "🙏", "✅", "⭐", "📌", "📎", "🏠", "💰", "📞", "✉️", "📅", "🔑"];
 
@@ -36,6 +37,7 @@ export function ChatInput({ channelId, replyTo, onClearReply, onSend, members, o
   const [leads, setLeads] = useState<LeadSuggestion[]>([]);
   const [uploading, setUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [isRecordingVoice, setIsRecordingVoice] = useState(false);
   const dragCounter = useRef(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
