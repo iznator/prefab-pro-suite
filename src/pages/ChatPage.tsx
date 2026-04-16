@@ -39,21 +39,16 @@ export default function ChatPage() {
   const pinnedMessages = messages.filter(m => m.is_pinned);
 
   const handleSelectChannel = useCallback((id: string) => {
-    // Save current scroll position before switching
     if (activeChannelId) {
       const pos = messageAreaRef.current?.getScrollPosition?.();
-      if (pos !== undefined) scrollPositions.current.set(activeChannelId, pos);
+      if (typeof pos === "number") {
+        scrollPositions.current.set(activeChannelId, pos);
+      }
     }
+
     setActiveChannelId(id);
     setMessageSearch("");
     setShowPinned(false);
-    // Restore scroll position after messages load
-    requestAnimationFrame(() => {
-      const saved = scrollPositions.current.get(id);
-      if (saved !== undefined) {
-        messageAreaRef.current?.setScrollPosition?.(saved);
-      }
-    });
   }, [activeChannelId]);
 
   const handleSend = useCallback(async (
@@ -178,6 +173,8 @@ export default function ChatPage() {
           <>
             <ChatMessageArea
               ref={messageAreaRef}
+              channelId={activeChannelId}
+              initialScrollPosition={activeChannelId ? (scrollPositions.current.get(activeChannelId) ?? null) : null}
               messages={filteredMessages}
               loading={msgsLoading}
               onReply={setReplyTo}

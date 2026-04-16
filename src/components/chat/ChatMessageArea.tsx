@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback, useState, useImperativeHandle, forwardRef } from "react";
+import { useRef, useEffect, useCallback, useState, useImperativeHandle, forwardRef, useLayoutEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Reply, Copy, Pin, Trash2, CheckCheck, FileText, ExternalLink, Hash, Forward, CheckSquare, ChevronDown, ArrowDown, Pencil, Play, Pause, Mic } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -60,6 +60,8 @@ function renderContentWithLeads(content: string, isMe: boolean, navigate: (path:
 }
 
 interface ChatMessageAreaProps {
+  channelId: string | null;
+  initialScrollPosition?: number | null;
   messages: ChatMessage[];
   loading: boolean;
   onReply: (msg: ChatMessage) => void;
@@ -140,7 +142,7 @@ function useSwipeToReply(onReply: () => void) {
 }
 
 export const ChatMessageArea = forwardRef<ChatMessageAreaHandle, ChatMessageAreaProps>(
-  function ChatMessageArea({ messages, loading, onReply, onReaction, onDelete, onEdit, onTogglePin }, ref) {
+  function ChatMessageArea({ channelId, initialScrollPosition = null, messages, loading, onReply, onReaction, onDelete, onEdit, onTogglePin }, ref) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -149,18 +151,20 @@ export const ChatMessageArea = forwardRef<ChatMessageAreaHandle, ChatMessageArea
   const [ctxMenu, setCtxMenu] = useState<ContextMenuState | null>(null);
   const [emojiExpanded, setEmojiExpanded] = useState(false);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
+  const prevCount = useRef(messages.length);
+  const prevChannelRef = useRef<string | null>(channelId);
+  const appliedChannelRef = useRef<string | null>(null);
 
-  const scrollToBottom = useCallback((behavior: ScrollBehavior = "instant") => {
-    bottomRef.current?.scrollIntoView({ behavior });
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = "auto") => {
+    bottomRef.current?.scrollIntoView({ behavior, block: "end" });
   }, []);
 
   useImperativeHandle(ref, () => ({
-    scrollToBottom: () => scrollToBottom("instant"),
+    scrollToBottom: () => scrollToBottom("auto"),
     getScrollPosition: () => containerRef.current?.scrollTop ?? 0,
     setScrollPosition: (pos: number) => { if (containerRef.current) containerRef.current.scrollTop = pos; },
   }), [scrollToBottom]);
 
-  // Track if user is near bottom
   const handleScroll = useCallback(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -175,19 +179,41 @@ export const ChatMessageArea = forwardRef<ChatMessageAreaHandle, ChatMessageArea
     return () => el.removeEventListener("scroll", handleScroll);
   }, [handleScroll]);
 
-  // Auto-scroll on new messages if near bottom
-  const prevCount = useRef(messages.length);
-  useEffect(() => {
-    if (messages.length > prevCount.current && !showScrollBtn) {
-      scrollToBottom("instant");
-    }
-    prevCount.current = messages.length;
-  }, [messages.length, showScrollBtn, scrollToBottom]);
+  useLayoutEffect(() => {
+    if (!channelId || loading) return;
+    const el = containerRef.current;
+    if (!el || appliedChannelRef.current === channelId) return;
 
-  // Initial scroll
+    if (typeof initialScrollPosition === "number") {
+      el.scrollTop = initialScrollPosition;
+    } else {
+      el.scrollTop = el.scrollHeight;
+    }
+
+    appliedChannelRef.current = channelId;
+    prevChannelRef.current = channelId;
+    prevCount.current = messages.length;
+    handleScroll();
+  }, [channelId, loading, initialScrollPosition, messages.length, handleScroll]);
+
   useEffect(() => {
-    scrollToBottom("instant");
-  }, []);
+    if (!channelId) {
+      prevCount.current = messages.length;
+      return;
+    }
+
+    if (prevChannelRef.current !== channelId) {
+      prevChannelRef.current = channelId;
+      prevCount.current = messages.length;
+      return;
+    }
+
+    if (messages.length > prevCount.current && !showScrollBtn) {
+      scrollToBottom("auto");
+    }
+
+    prevCount.current = messages.length;
+  }, [channelId, messages.length, showScrollBtn, scrollToBottom]);
 
   useEffect(() => {
     if (!ctxMenu) return;
@@ -270,7 +296,7 @@ export const ChatMessageArea = forwardRef<ChatMessageAreaHandle, ChatMessageArea
   return (
     <div
       ref={containerRef}
-      className="flex-1 overflow-y-auto px-4 py-3 relative scroll-smooth"
+      className="flex-1 overflow-y-auto px-4 py-3 relative"
       style={{ background: "linear-gradient(180deg, hsl(var(--muted) / 0.15) 0%, hsl(var(--muted) / 0.05) 100%)" }}
     >
       {messages.length === 0 && (
