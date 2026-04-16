@@ -455,7 +455,7 @@ function SwipeableMessage({
             isMe
               ? `bg-[#EFFDDE] dark:bg-[#2B5D3E] text-[#1a3a2a] dark:text-[#E8F5E0] shadow-sm ${sameSender ? "rounded-2xl rounded-br-md" : "rounded-2xl rounded-br-md"}`
               : `bg-white dark:bg-[#212121] text-foreground shadow-sm ${sameSender ? "rounded-2xl rounded-bl-md" : "rounded-2xl rounded-bl-md"}`
-          } ${isHighlighted ? "ring-2 ring-primary/50 scale-[1.01]" : ""} ${isOptimistic ? "opacity-70" : ""}`}
+          } ${isHighlighted ? "ring-2 ring-primary/50 scale-[1.01]" : ""}`}
         >
           {!sameSender && (
             <div className={`absolute top-0 w-3 h-3 ${
