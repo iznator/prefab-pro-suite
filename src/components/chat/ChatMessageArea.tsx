@@ -489,7 +489,10 @@ function SwipeableMessage({
             <img src={msg.file_url} alt={msg.file_name || "image"} loading="lazy"
               className="rounded-lg max-h-52 object-cover mb-1 cursor-pointer hover:brightness-95 transition-all" />
           )}
-          {msg.type === "file" && (
+          {msg.type === "file" && msg.file_type?.startsWith("audio/") && msg.file_url && (
+            <VoiceMessagePlayer src={msg.file_url} isMe={isMe} />
+          )}
+          {msg.type === "file" && !msg.file_type?.startsWith("audio/") && (
             <a href={msg.file_url || "#"} target="_blank" rel="noopener noreferrer"
               className={`flex items-center gap-2 p-2 rounded-lg mb-1 transition-colors ${
                 isMe ? "bg-[#d4f5d4]/60 dark:bg-[#1e4d2e]/60 hover:bg-[#c4e8c4]/80" : "bg-muted hover:bg-muted/80"
