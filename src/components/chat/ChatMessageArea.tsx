@@ -547,7 +547,7 @@ function VoiceMessagePlayer({ src, isMe }: { src: string; isMe: boolean }) {
   const audioRef = useRef<HTMLAudioElement>(null);
 
   // Generate pseudo-waveform bars (deterministic from src hash)
-  const bars = useRef<number[]>(() => {
+  const [bars] = useState<number[]>(() => {
     let hash = 0;
     for (let i = 0; i < src.length; i++) hash = ((hash << 5) - hash + src.charCodeAt(i)) | 0;
     const result: number[] = [];
@@ -556,7 +556,7 @@ function VoiceMessagePlayer({ src, isMe }: { src: string; isMe: boolean }) {
       result.push(0.15 + (hash % 100) / 100 * 0.85);
     }
     return result;
-  }).current;
+  });
 
   const toggle = () => {
     const a = audioRef.current;
