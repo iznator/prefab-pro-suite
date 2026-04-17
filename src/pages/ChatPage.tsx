@@ -1,9 +1,10 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useMemo } from "react";
 import { ChatChannelList } from "@/components/chat/ChatChannelList";
 import { ChatMessageArea, type ChatMessageAreaHandle } from "@/components/chat/ChatMessageArea";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { ChatHeader } from "@/components/chat/ChatHeader";
-import { ChatMediaPanel } from "@/components/chat/ChatMediaPanel";
+import { ChatMediaDialog } from "@/components/chat/ChatMediaDialog";
+import { ImageLightbox, type LightboxImage } from "@/components/chat/ImageLightbox";
 import { ChatMembersPanel } from "@/components/chat/ChatMembersPanel";
 import { CreateChannelDialog } from "@/components/chat/CreateChannelDialog";
 import { useChannels, useMessages, useChannelMembers, type ChatMessage } from "@/hooks/useChat";
@@ -26,6 +27,7 @@ export default function ChatPage() {
   const [recapContent, setRecapContent] = useState<string | null>(null);
   const [messageSearch, setMessageSearch] = useState("");
   const messageAreaRef = useRef<ChatMessageAreaHandle>(null);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   // Persist scroll positions per channel
   const scrollPositions = useRef<Map<string, number>>(new Map());
@@ -37,6 +39,19 @@ export default function ChatPage() {
 
   const activeChannel = channels.find(c => c.id === activeChannelId) || null;
   const pinnedMessages = messages.filter(m => m.is_pinned);
+
+  const chatImages = useMemo(() => messages.filter(m => m.type === "image" && m.file_url), [messages]);
+  const lightboxImages: LightboxImage[] = useMemo(() => chatImages.map(m => ({
+    url: m.file_url || "",
+    name: m.file_name || undefined,
+    author: m.profile?.display_name || "Utilisateur",
+    date: new Date(m.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }),
+  })), [chatImages]);
+
+  const handleImageClick = useCallback((messageId: string) => {
+    const idx = chatImages.findIndex(m => m.id === messageId);
+    if (idx >= 0) setLightboxIndex(idx);
+  }, [chatImages]);
 
   const handleSelectChannel = useCallback((id: string) => {
     if (activeChannelId) {
@@ -182,6 +197,7 @@ export default function ChatPage() {
               onDelete={deleteMessage}
               onEdit={editMessage}
               onTogglePin={togglePin}
+              onImageClick={handleImageClick}
             />
 
             {typingUsers.length > 0 && (
@@ -241,12 +257,21 @@ export default function ChatPage() {
         </div>
       )}
 
-      {showMedia && activeChannelId && (
-        <ChatMediaPanel messages={messages} onClose={() => setShowMedia(false)} />
-      )}
+      <ChatMediaDialog
+        open={showMedia && !!activeChannelId}
+        onOpenChange={setShowMedia}
+        messages={messages}
+      />
       {showMembers && activeChannelId && (
         <ChatMembersPanel members={members} onClose={() => setShowMembers(false)} />
       )}
+
+      <ImageLightbox
+        open={lightboxIndex !== null}
+        onClose={() => setLightboxIndex(null)}
+        images={lightboxImages}
+        initialIndex={lightboxIndex ?? 0}
+      />
 
       <CreateChannelDialog
         open={showCreateDialog}

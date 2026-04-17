@@ -69,6 +69,7 @@ interface ChatMessageAreaProps {
   onDelete: (msgId: string) => void;
   onEdit?: (msgId: string, newContent: string) => void;
   onTogglePin?: (msgId: string) => void;
+  onImageClick?: (msgId: string) => void;
 }
 
 export interface ChatMessageAreaHandle {
@@ -142,7 +143,7 @@ function useSwipeToReply(onReply: () => void) {
 }
 
 export const ChatMessageArea = forwardRef<ChatMessageAreaHandle, ChatMessageAreaProps>(
-  function ChatMessageArea({ channelId, initialScrollPosition = null, messages, loading, onReply, onReaction, onDelete, onEdit, onTogglePin }, ref) {
+  function ChatMessageArea({ channelId, initialScrollPosition = null, messages, loading, onReply, onReaction, onDelete, onEdit, onTogglePin, onImageClick }, ref) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -168,8 +169,10 @@ export const ChatMessageArea = forwardRef<ChatMessageAreaHandle, ChatMessageArea
   const handleScroll = useCallback(() => {
     const el = containerRef.current;
     if (!el) return;
+    // Only show button if there's actual scrollable overflow AND user is not near bottom
+    const hasOverflow = el.scrollHeight > el.clientHeight + 20;
     const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
-    setShowScrollBtn(!nearBottom);
+    setShowScrollBtn(hasOverflow && !nearBottom);
   }, []);
 
   useEffect(() => {
@@ -269,11 +272,13 @@ export const ChatMessageArea = forwardRef<ChatMessageAreaHandle, ChatMessageArea
 
   const handleContextMenu = (e: React.MouseEvent, msgId: string) => {
     e.preventDefault();
-    const rect = containerRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const x = Math.min(e.clientX - rect.left, rect.width - 240);
-    const y = Math.min(e.clientY - rect.top, rect.height - 380);
-    setCtxMenu({ msgId, x: Math.max(0, x), y: Math.max(0, y) });
+    e.stopPropagation();
+    // Use viewport coordinates with position:fixed and clamp to window bounds
+    const menuW = 240;
+    const menuH = 380;
+    const x = Math.max(8, Math.min(e.clientX, window.innerWidth - menuW - 8));
+    const y = Math.max(8, Math.min(e.clientY, window.innerHeight - menuH - 8));
+    setCtxMenu({ msgId, x, y });
     setEmojiExpanded(false);
   };
 
@@ -328,6 +333,7 @@ export const ChatMessageArea = forwardRef<ChatMessageAreaHandle, ChatMessageArea
               groupReactions={groupReactions}
               getInitials={getInitials}
               formatTime={formatTime}
+              onImageClick={onImageClick}
             />
           ))}
         </div>
@@ -341,7 +347,7 @@ export const ChatMessageArea = forwardRef<ChatMessageAreaHandle, ChatMessageArea
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.92 }}
             transition={{ duration: 0.12, ease: "easeOut" }}
-            className="absolute z-50 bg-card border rounded-2xl shadow-xl overflow-hidden"
+            className="fixed z-50 bg-card border rounded-2xl shadow-xl overflow-hidden"
             style={{ left: ctxMenu.x, top: ctxMenu.y, minWidth: 220 }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -435,7 +441,7 @@ export const ChatMessageArea = forwardRef<ChatMessageAreaHandle, ChatMessageArea
 // Swipeable message row
 function SwipeableMessage({
   msg, prevMsg, user, navigate, highlightedId,
-  onReply, onReaction, onContextMenu, scrollToMessage, groupReactions, getInitials, formatTime,
+  onReply, onReaction, onContextMenu, scrollToMessage, groupReactions, getInitials, formatTime, onImageClick,
 }: {
   msg: ChatMessage;
   prevMsg: ChatMessage | null;
@@ -449,6 +455,7 @@ function SwipeableMessage({
   groupReactions: (reactions: { emoji: string; user_id: string }[]) => { emoji: string; count: number; reacted: boolean }[];
   getInitials: (name: string | null | undefined) => string;
   formatTime: (date: string) => string;
+  onImageClick?: (msgId: string) => void;
 }) {
   const isMe = msg.user_id === user?.id;
   const sameSender = prevMsg?.user_id === msg.user_id;
@@ -531,8 +538,13 @@ function SwipeableMessage({
           )}
 
           {msg.type === "image" && msg.file_url && (
-            <img src={msg.file_url} alt={msg.file_name || "image"} loading="lazy"
-              className="rounded-lg max-h-52 object-cover mb-1 cursor-pointer hover:brightness-95 transition-all" />
+            <img
+              src={msg.file_url}
+              alt={msg.file_name || "image"}
+              loading="lazy"
+              onClick={(e) => { e.stopPropagation(); onImageClick?.(msg.id); }}
+              className="rounded-lg max-h-52 object-cover mb-1 cursor-pointer hover:brightness-95 transition-all"
+            />
           )}
           {msg.type === "file" && msg.file_type?.startsWith("audio/") && msg.file_url && (
             <VoiceMessagePlayer src={msg.file_url} isMe={isMe} />
