@@ -333,6 +333,7 @@ export const ChatMessageArea = forwardRef<ChatMessageAreaHandle, ChatMessageArea
               groupReactions={groupReactions}
               getInitials={getInitials}
               formatTime={formatTime}
+              onImageClick={onImageClick}
             />
           ))}
         </div>
@@ -440,7 +441,7 @@ export const ChatMessageArea = forwardRef<ChatMessageAreaHandle, ChatMessageArea
 // Swipeable message row
 function SwipeableMessage({
   msg, prevMsg, user, navigate, highlightedId,
-  onReply, onReaction, onContextMenu, scrollToMessage, groupReactions, getInitials, formatTime,
+  onReply, onReaction, onContextMenu, scrollToMessage, groupReactions, getInitials, formatTime, onImageClick,
 }: {
   msg: ChatMessage;
   prevMsg: ChatMessage | null;
@@ -454,6 +455,7 @@ function SwipeableMessage({
   groupReactions: (reactions: { emoji: string; user_id: string }[]) => { emoji: string; count: number; reacted: boolean }[];
   getInitials: (name: string | null | undefined) => string;
   formatTime: (date: string) => string;
+  onImageClick?: (msgId: string) => void;
 }) {
   const isMe = msg.user_id === user?.id;
   const sameSender = prevMsg?.user_id === msg.user_id;
@@ -536,8 +538,13 @@ function SwipeableMessage({
           )}
 
           {msg.type === "image" && msg.file_url && (
-            <img src={msg.file_url} alt={msg.file_name || "image"} loading="lazy"
-              className="rounded-lg max-h-52 object-cover mb-1 cursor-pointer hover:brightness-95 transition-all" />
+            <img
+              src={msg.file_url}
+              alt={msg.file_name || "image"}
+              loading="lazy"
+              onClick={(e) => { e.stopPropagation(); onImageClick?.(msg.id); }}
+              className="rounded-lg max-h-52 object-cover mb-1 cursor-pointer hover:brightness-95 transition-all"
+            />
           )}
           {msg.type === "file" && msg.file_type?.startsWith("audio/") && msg.file_url && (
             <VoiceMessagePlayer src={msg.file_url} isMe={isMe} />
