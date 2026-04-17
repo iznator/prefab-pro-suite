@@ -72,16 +72,16 @@ export function ChatChannelList({
         onClick={() => onSelectChannel(ch.id)}
         onContextMenu={(e) => handleCtx(e, ch.id)}
         className={cn(
-          "w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm transition-all duration-100 text-left group",
+          "w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm transition-colors duration-100 text-left group",
           isActive
-            ? "bg-primary text-primary-foreground shadow-sm"
-            : "hover:bg-muted text-foreground"
+            ? "bg-muted text-foreground"
+            : "hover:bg-muted/60 text-foreground"
         )}
       >
         {/* Avatar or icon */}
         <div className={cn(
           "w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-[10px] font-bold overflow-hidden",
-          isActive ? "bg-primary-foreground/20" : "bg-primary/10 text-primary"
+          "bg-primary/10 text-primary"
         )}>
           {avatarUrl ? (
             <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
@@ -93,25 +93,25 @@ export function ChatChannelList({
         </div>
 
         <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-1">
             <span className={cn("truncate text-[12px]", unread > 0 && !isActive ? "font-bold" : "font-medium")}>
               {isPinned && <Pin className="w-2.5 h-2.5 inline mr-0.5 opacity-50" />}
               {ch.name}
             </span>
-            <span className={cn(
-              "text-[9px] flex-shrink-0 ml-1",
-              isActive ? "text-primary-foreground/70" : unread > 0 ? "text-primary font-semibold" : "text-muted-foreground"
-            )}>
-              {formatLastTime(ch.updated_at)}
-            </span>
-          </div>
-          {unread > 0 && !isActive && (
-            <div className="flex justify-end mt-0.5">
-              <span className="w-4 h-4 rounded-full bg-primary text-primary-foreground text-[9px] font-bold flex items-center justify-center flex-shrink-0">
-                {unread > 99 ? "99" : unread}
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <span className={cn(
+                "text-[9px]",
+                unread > 0 ? "text-foreground font-semibold" : "text-muted-foreground"
+              )}>
+                {formatLastTime(ch.updated_at)}
               </span>
+              {unread > 0 && (
+                <span className="min-w-[16px] h-4 px-1 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center">
+                  {unread > 99 ? "99+" : unread}
+                </span>
+              )}
             </div>
-          )}
+          </div>
         </div>
       </button>
     );
